@@ -18,6 +18,7 @@ I am working here on building a clean copy of our ICLR paper's code and results.
 - [ ] flow
 - [ ] clear readme
 - [ ] nice gif in readme
+- [ ] data on google drive
 - [ ] some weights
 
 

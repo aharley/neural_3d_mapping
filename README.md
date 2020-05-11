@@ -11,7 +11,9 @@ I am working here on building a clean copy of our ICLR paper's code and results.
 - [x] view
 - [x] feat2d
 - [x] emb2d
+- [x] delete unused nets
 - [ ] det
+- [ ] delete unused modes from main and hyps
 - [ ] ego
 - [ ] flow
 - [ ] clear readme

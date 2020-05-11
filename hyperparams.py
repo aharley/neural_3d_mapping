@@ -123,8 +123,6 @@ do_det = False
 lr = 0.0
 
 #----------- emb hypers -----------#
-emb2d_smooth_coeff = 0.0
-emb3d_smooth_coeff = 0.0
 emb2d_ml_coeff = 0.0
 emb3d_ml_coeff = 0.0
 emb2d_l2_coeff = 0.0

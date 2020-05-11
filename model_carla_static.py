@@ -204,7 +204,6 @@ class CarlaStaticModel(nn.Module):
         self.lrtlist_camXs = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camXs_T_camRs), __p(self.lrtlist_camRs)))
         self.lrtlist_camX0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camX0s_T_camXs), __p(self.lrtlist_camXs)))
 
-
         self.rgb_camXs = feed['rgb_camXs']
         visX_e = []
         for s in list(range(0, self.S, 2)):

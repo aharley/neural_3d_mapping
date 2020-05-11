@@ -47,6 +47,7 @@ mod = '"sta36"' # better summ suffix
 mod = '"sta37"' # tell me about neg pool size
 mod = '"sta38"' # fix small bug in the hyp lettering
 mod = '"sta39"' # cleaned up hyps
+mod = '"sta40"' # 
 
 ############## define experiment ##############
 
@@ -86,7 +87,7 @@ exps['trainer'] = [
 groups['train_feat2d'] = [
     'do_feat2d = True',
     'feat2d_dim = 32',
-    'feat2d_smooth_coeff = 0.1',
+    # 'feat2d_smooth_coeff = 0.1',
 ]
 groups['train_feat3d'] = [
     'do_feat3d = True',
@@ -116,7 +117,6 @@ groups['train_emb2d'] = [
 groups['train_emb3d'] = [
     'do_emb3d = True',
     'emb3d_ce_coeff = 1.0',
-    # 'emb_3d_smooth_coeff = 0.01',
     # 'emb_3d_l2_coeff = 0.1',
     # 'emb_3d_mindist = 16.0',
     'emb3d_num_samples = 2',

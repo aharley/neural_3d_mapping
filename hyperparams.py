@@ -294,7 +294,6 @@ col2d_huber_coeff = 0.0
 
 #----------- feat3d hypers -----------#
 feat3d_sparse = False
-feat3d_smooth_coeff = 0.0
 feat3d_dim = 32
 
 #----------- up3d hypers -----------#
@@ -835,11 +834,9 @@ if do_feat3d:
         name += "f"
     coeffs = [
         feat3d_dim,
-        feat3d_smooth_coeff,
     ]
     prefixes = [
         "d",
-        "s",
     ]
     for l_, l in enumerate(coeffs):
         if l > 0:

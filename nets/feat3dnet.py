@@ -25,9 +25,17 @@ class Feat3dNet(nn.Module):
         B, C, Z, Y, X = list(feat_input.shape)
 
         feat = self.net(feat_input)
+
+        # smooth loss
+        dz, dy, dx = utils.basic.gradient3d(feat, absolute=True)
+        smooth_vox = torch.mean(dx+dy+dz, dim=1, keepdims=True)
+        smooth_loss = torch.mean(smooth_vox)
+        total_loss = utils.misc.add_loss('feate3d/smooth_loss', total_loss, smooth_loss, hyp.occ_smooth_coeff, summ_writer)
+
         feat = utils.basic.l2_normalize(feat, dim=1)
         
         if summ_writer is not None:
+            summ_writer.summ_oned('feat3d/smooth_loss', torch.mean(smooth_vox, dim=3))
             summ_writer.summ_feat('feat3d/feat_input', feat_input, pca=(C>3))
             summ_writer.summ_feat('feat3d/feat_output', feat, pca=True)
     

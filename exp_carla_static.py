@@ -47,7 +47,8 @@ mod = '"sta36"' # better summ suffix
 mod = '"sta37"' # tell me about neg pool size
 mod = '"sta38"' # fix small bug in the hyp lettering
 mod = '"sta39"' # cleaned up hyps
-mod = '"sta40"' # 
+mod = '"sta40"' # weak smooth coeff on feats
+mod = '"sta41"' # run occnet on altfeat instead
 
 ############## define experiment ##############
 
@@ -92,6 +93,7 @@ groups['train_feat2d'] = [
 groups['train_feat3d'] = [
     'do_feat3d = True',
     'feat3d_dim = 32',
+    'feat3d_smooth_coeff = 0.01',
 ]
 groups['train_occ'] = [
     'do_occ = True',

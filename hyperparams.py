@@ -136,6 +136,7 @@ emb3d_ce_coeff = 0.0
 
 #----------- feat3d hypers -----------#
 feat3d_dim = 32
+feat3d_smooth_coeff = 0.0
 
 #----------- feat2d hypers -----------#
 feat2d_smooth_coeff = 0.0
@@ -471,9 +472,11 @@ if do_feat3d:
         name += "f"
     coeffs = [
         feat3d_dim,
+        feat3d_smooth_coeff,
     ]
     prefixes = [
         "d",
+        "s",
     ]
     for l_, l in enumerate(coeffs):
         if l > 0:

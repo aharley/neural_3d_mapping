@@ -1,0 +1,10 @@
+logs*
+out*
+checkpoints*
+.tensorboard-info/*
+checkpoints*
+*.png
+*.npy
+*.npz
+*~
+.DS_STORE

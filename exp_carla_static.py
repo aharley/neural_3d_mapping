@@ -46,6 +46,7 @@ mod = '"sta35"' # fix bug
 mod = '"sta36"' # better summ suffix
 mod = '"sta37"' # tell me about neg pool size
 mod = '"sta38"' # fix small bug in the hyp lettering
+mod = '"sta39"' # cleaned up hyps
 
 ############## define experiment ##############
 

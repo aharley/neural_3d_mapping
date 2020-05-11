@@ -30,34 +30,11 @@ def load_weights(model, optimizer):
         start_iter = 0
         inits = {"feat2dnet": hyp.feat2d_init,
                  "feat3dnet": hyp.feat3d_init,
-                 "up3dnet": hyp.up3d_init,
-                 "segnet": hyp.seg_init,
                  "viewnet": hyp.view_init,
-                 "segnet": hyp.seg_init,
-                 "matchnet": hyp.match_init,
-                 "confnet": hyp.conf_init,
-                 "rigidnet": hyp.rigid_init,
-                 "locnet": hyp.loc_init,
-                 "vq2dnet": hyp.vq2d_init,
-                 "vq3dnet": hyp.vq3d_init,
-                 "sigen3dnet": hyp.sigen3d_init,
-                 "motionregnet": hyp.motionreg_init,
-                 "gen3dnet": hyp.gen3d_init,
-                 "forecastnet": hyp.forecast_init,
                  "detnet": hyp.det_init,
-                 "visnet": hyp.vis_init,
                  "flownet": hyp.flow_init,
-                 "pri2dnet": hyp.pri2d_init,
-                 "emb2dnet": hyp.emb2d_init,
-                 # "emb3dnet": hyp.emb3d_init, # no params here really
-                 "inpnet": hyp.inp_init,
                  "egonet": hyp.ego_init,
                  "occnet": hyp.occ_init,
-                 "centernet": hyp.center_init,
-                 "preoccnet": hyp.preocc_init,
-                 "optim": hyp.optim_init,
-                 # "obj": hyp.obj_init,
-                 # "bkg": hyp.bkg_init,
         }
 
         for part, init in list(inits.items()):
@@ -67,67 +44,17 @@ def load_weights(model, optimizer):
                     model_part = model.feat2dnet
                 elif part == 'feat3dnet':
                     model_part = model.feat3dnet
-                # elif part == 'up3dnet':
-                #     model_part = model.up3dnet
-                # elif part == 'viewnet':
-                #     model_part = model.viewnet
-                # elif part == 'segnet':
-                #     model_part = model.segnet
-                # elif part == 'matchnet':
-                #     model_part = model.matchnet
-                # elif part == 'confnet':
-                #     model_part = model.confnet
-                # elif part == 'rigidnet':
-                #     model_part = model.rigidnet
-                # elif part == 'locnet':
-                #     model_part = model.locnet
-                # elif part == 'vq2dnet':
-                #     model_part = model.vq2dnet
-                # elif part == 'vq3dnet':
-                #     model_part = model.vq3dnet
-                # elif part == 'sigen3dnet':
-                #     model_part = model.sigen3dnet
-                # elif part == 'motionregnet':
-                #     model_part = model.motionregnet
-                # elif part == 'gen3dnet':
-                #     model_part = model.gen3dnet
-                # elif part == 'forecastnet':
-                #     model_part = model.forecastnet
-                # elif part == 'detnet':
-                #     model_part = model.detnet
-                # elif part == 'occnet':
-                #     model_part = model.occnet
-                # elif part == 'centernet':
-                #     model_part = model.centernet
-                # elif part == 'preoccnet':
-                #     model_part = model.preoccnet
-                # elif part == 'pri2dnet':
-                #     model_part = model.pri2dnet
-                elif part == 'emb2dnet':
-                    model_part = model.emb2dnet
+                elif part == 'occnet':
+                    model_part = model.occnet
                 elif part == 'flownet':
                     model_part = model.flownet
-                elif part == 'optim':
-                    model_part = model.optim_dict
-                # elif part == 'bkg':
-                #     model_part = model.bkg
-                # elif part == 'obj':
-                #     model_part = [
-                #         model.obj,
-                #         model.obj_alist,
-                #         model.obj_tlist,
-                #         model.obj_l,
-                #     ]
                 else:
                     assert(False)
-                if part=='optim':
-                    load_optim(model_part, init)
+                if isinstance(model_part, list):
+                    for mp in model_part:
+                        iter = load_part([mp], part, init)
                 else:
-                    if isinstance(model_part, list):
-                        for mp in model_part:
-                            iter = load_part([mp], part, init)
-                    else:
-                        iter = load_part(model_part, part, init)
+                    iter = load_part(model_part, part, init)
                 if iter:
                     print("loaded %s at iter %08d" % (init, iter))
                 else:
@@ -153,51 +80,7 @@ def save(model, checkpoint_dir, step, optimizer, keep_latest=3):
         'optimizer_state_dict': optimizer.state_dict()
         }, path)
     print("Saved a checkpoint: %s"%(path))
-
-def save_optim(model, checkpoint_dir, step):
-    print('SAVE_OPTIM: NOT YET SAVING ANY MOMENTUM PARAMS')
-    model_name = "model-%08d-optim.npz" % (step)
-    if not os.path.exists(checkpoint_dir):
-        os.makedirs(checkpoint_dir)
-    path = os.path.join(checkpoint_dir, model_name)
-    save_dict = {}
-    for k, v in model.optim_dict.items():
-        print('saving %s' % k)
-        save_dict[k] = v.detach().cpu().numpy()
-    np.savez(path, save_dict=save_dict)
-    print("Saved an optim checkpoint: %s" % (path))
     
-def load_optim(model_optim_dict, load_dir):
-    checkpoint_dir = os.path.join("checkpoints/", load_dir)
-    print('LOAD_OPTIM: NOT YET LOADING ANY MOMENTUM PARAMS')
-    if not os.path.exists(checkpoint_dir):
-        print("...ain't no full checkpoint here!")
-    else:
-        ckpt_names = os.listdir(checkpoint_dir)
-        steps = [int((i.split('-')[1]).split('.')[0]) for i in ckpt_names]
-        if len(ckpt_names) > 0:
-            # ind, step = max(steps)
-            # model_name = "model-%08d-optim.npz" % (step)
-            ind = np.argmax(steps)
-            # model_name = "model-%08d-optim.npz" % (step)
-            model_name = ckpt_names[ind]
-            path = os.path.join(checkpoint_dir, model_name)
-            print('loading from %s' % path)
-            load_dict = np.load(path, allow_pickle=True)['save_dict']
-            load_dict = load_dict.item()
-            # print(load_dict.files)
-            # print(o)
-            # o = o.item()
-            # print(o)
-            # load_dict = o.files['save_dict']
-            # print(load_dict)
-            for k, v in model_optim_dict.items():
-                print('loading %s' % k)
-                v.data = torch.FloatTensor(load_dict[k]).to(torch.device('cuda'))
-            print('done loading')
-        else:
-            print("...ain't no full checkpoint here!")
-
 def load(model_name, model, optimizer):
     print("reading full checkpoint...")
     # checkpoint_dir = os.path.join("checkpoints/", model_name)

@@ -204,42 +204,6 @@ class CarlaStaticModel(nn.Module):
         self.lrtlist_camXs = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camXs_T_camRs), __p(self.lrtlist_camRs)))
         self.lrtlist_camX0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camX0s_T_camXs), __p(self.lrtlist_camXs)))
 
-        # self.crop_guess = (40,40,40)
-        # self.crop_guess = (20,20,20)
-        # self.crop_guess = (52,52,52)
-        # self.crop_guess = (50,50,50)
-        # self.crop_guess = (1,1,1)
-        # self.crop_guess = (2,2,2)
-        self.crop_guess = (4,4,4)
-        # self.crop_guess = (25,25,25)
-        if hyp.do_center:
-            lrtlist = self.lrtlist_camX0s[:,0]
-            clist = utils.geom.get_clist_from_lrtlist(lrtlist)
-            # this is B x N x 3
-            mask = self.vox_util.xyz2circles(clist, self.Z, self.Y, self.X, radius=1.0, soft=True, already_mem=False)
-            mask = mask[:,:,
-                        self.crop_guess[0]:-self.crop_guess[0],
-                        self.crop_guess[1]:-self.crop_guess[2],
-                        self.crop_guess[2]:-self.crop_guess[2]]
-            self.center_mask = torch.max(mask, dim=1, keepdim=True)[0]
-
-            mask_max = torch.max(self.center_mask.reshape(self.B, -1), dim=1)[0]
-            # print('mask_max', mask_max.detach().cpu().numpy())
-            # if torch.min(mask_max) < 1.0:
-            #     # print('returning early!!!')
-            #     # at least one ex has no objects in the crop; let's return early
-            #     return False
-        
-        # self.summ_writer.summ_rgb('2d_inputs/rgb_camX0', self.rgb_camXs[:,0])
-        # # self.occ_memX0s = __u(self.vox_util.voxelize_xyz(__p(self.xyz_camX0s), self.Z, self.Y, self.X))
-        # # self.summ_writer.summ_rgbs('2d_inputs/rgb_camXs', torch.unbind(self.rgb_camXs, dim=1))
-        # # self.summ_writer.summ_occs('3d_inputs/occ_memRs', torch.unbind(self.occ_memRs, dim=1))
-        # # self.summ_writer.summ_occs('3d_inputs/occ_memR0s', torch.unbind(self.occ_memR0s, dim=1))
-        # # self.summ_writer.summ_occs('3d_inputs/occ_memX0s', torch.unbind(self.occ_memX0s, dim=1))
-        # # self.summ_writer.summ_unps('3d_inputs/unp_memX0s', torch.unbind(self.unp_memX0s, dim=1), torch.unbind(self.occ_memX0s, dim=1))
-        # # self.summ_writer.summ_occs('3d_inputs/obj_occR0s', torch.unbind(self.obj_occR0s, dim=1))
-        # # self.summ_writer.summ_feat('3d_inputs/obj_mask', self.obj_mask_template, pca=False)
-
 
         self.rgb_camXs = feed['rgb_camXs']
         visX_e = []

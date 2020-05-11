@@ -1,4 +1,4 @@
-import pretrained_nets_carla as pret_carla
+# import pretrained_nets_carla as pret_carla
 
 exps = {}
 groups = {}
@@ -218,125 +218,126 @@ groups['no_logging'] = [
 ]
 
 # ############## pretrained nets ##############
-groups['pretrained_sigen3d'] = [
-    'do_sigen3d = True',
-    'sigen3d_init = "' + pret_carla.sigen3d_init + '"',
-]
-groups['pretrained_conf'] = [
-    'do_conf = True',
-    'conf_init = "' + pret_carla.conf_init + '"',
-]
-groups['pretrained_up3D'] = [
-    'do_up3D = True',
-    'up3D_init = "' + pret_carla.up3D_init + '"',
-]
-groups['pretrained_center'] = [
-    'do_center = True',
-    'center_init = "' + pret_carla.center_init + '"',
-]
-groups['pretrained_seg'] = [
-    'do_seg = True',
-    'seg_init = "' + pret_carla.seg_init + '"',
-]
-groups['pretrained_motionreg'] = [
-    'do_motionreg = True',
-    'motionreg_init = "' + pret_carla.motionreg_init + '"',
-]
-groups['pretrained_gen3d'] = [
-    'do_gen3d = True',
-    'gen3d_init = "' + pret_carla.gen3d_init + '"',
-]
-groups['pretrained_vq2d'] = [
-    'do_vq2d = True',
-    'vq2d_init = "' + pret_carla.vq2d_init + '"',
-    'vq2d_num_embeddings = %d' % pret_carla.vq2d_num_embeddings,
-]
-groups['pretrained_vq3d'] = [
-    'do_vq3d = True',
-    'vq3d_init = "' + pret_carla.vq3d_init + '"',
-    'vq3d_num_embeddings = %d' % pret_carla.vq3d_num_embeddings,
-]
-groups['pretrained_feat2D'] = [
-    'do_feat2D = True',
-    'feat2D_init = "' + pret_carla.feat2D_init + '"',
-    'feat2D_dim = %d' % pret_carla.feat2D_dim,
-]
-groups['pretrained_feat3D'] = [
-    'do_feat3D = True',
-    'feat3D_init = "' + pret_carla.feat3D_init + '"',
-    'feat3D_dim = %d' % pret_carla.feat3D_dim,
-]
-groups['pretrained_match'] = [
-    'do_match = True',
-    'match_init = "' + pret_carla.match_init + '"',
-]
-groups['pretrained_rigid'] = [
-    'do_rigid = True',
-    'rigid_init = "' + pret_carla.rigid_init + '"',
-]
-# groups['pretrained_pri2D'] = [
-#     'do_pri2D = True',
-#     'pri2D_init = "' + pret_carla.pri2D_init + '"',
-# ]
-groups['pretrained_det'] = [
-    'do_det = True',
-    'det_init = "' + pret_carla.det_init + '"',
-]
-groups['pretrained_forecast'] = [
-    'do_forecast = True',
-    'forecast_init = "' + pret_carla.forecast_init + '"',
-]
-groups['pretrained_view'] = [
-    'do_view = True',
-    'view_init = "' + pret_carla.view_init + '"',
-    'view_depth = %d' %  pret_carla.view_depth,
-    'feat2D_dim = %d' %  pret_carla.feat2D_dim,
-    # 'view_use_halftanh = ' + str(pret_carla.view_use_halftanh),
-    # 'view_pred_embs = ' + str(pret_carla.view_pred_embs),
-    # 'view_pred_rgb = ' + str(pret_carla.view_pred_rgb),
-]
-groups['pretrained_flow'] = ['do_flow = True',
-                             'flow_init = "' + pret_carla.flow_init + '"',
-]
-# groups['pretrained_tow'] = ['do_tow = True',
-#                             'tow_init = "' + pret_carla.tow_init + '"',
-# ]
-groups['pretrained_emb2D'] = ['do_emb2D = True',
-                              'emb2D_init = "' + pret_carla.emb2D_init + '"',
-                              # 'emb_dim = %d' % pret_carla.emb_dim,
-]
-groups['pretrained_occ'] = ['do_occ = True',
-                            'occ_init = "' + pret_carla.occ_init + '"',
-]
-groups['pretrained_preocc'] = [
-    'do_preocc = True',
-    'preocc_init = "' + pret_carla.preocc_init + '"',
-]
-groups['pretrained_vis'] = ['do_vis = True',
-                            'vis_init = "' + pret_carla.vis_init + '"',
-                            # 'occ_cheap = ' + str(pret_carla.occ_cheap),
-]
-groups['total_init'] = ['total_init = "' + pret_carla.total_init + '"']
-groups['pretrained_optim'] = ['optim_init = "' + pret_carla.optim_init + '"']
 
-groups['frozen_conf'] = ['do_freeze_conf = True', 'do_conf = True']
-groups['frozen_motionreg'] = ['do_freeze_motionreg = True', 'do_motionreg = True']
-groups['frozen_feat2D'] = ['do_freeze_feat2D = True', 'do_feat2D = True']
-groups['frozen_feat3D'] = ['do_freeze_feat3D = True', 'do_feat3D = True']
-groups['frozen_up3D'] = ['do_freeze_up3D = True', 'do_up3D = True']
-groups['frozen_vq3d'] = ['do_freeze_vq3d = True', 'do_vq3d = True']
-groups['frozen_view'] = ['do_freeze_view = True', 'do_view = True']
-groups['frozen_center'] = ['do_freeze_center = True', 'do_center = True']
-groups['frozen_seg'] = ['do_freeze_seg = True', 'do_seg = True']
-groups['frozen_vis'] = ['do_freeze_vis = True', 'do_vis = True']
-groups['frozen_flow'] = ['do_freeze_flow = True', 'do_flow = True']
-groups['frozen_match'] = ['do_freeze_match = True', 'do_match = True']
-groups['frozen_emb2D'] = ['do_freeze_emb2D = True', 'do_emb2D = True']
-groups['frozen_pri2D'] = ['do_freeze_pri2D = True', 'do_pri2D = True']
-groups['frozen_occ'] = ['do_freeze_occ = True', 'do_occ = True']
-groups['frozen_vq2d'] = ['do_freeze_vq2d = True', 'do_vq2d = True']
-groups['frozen_vq3d'] = ['do_freeze_vq3d = True', 'do_vq3d = True']
-groups['frozen_sigen3d'] = ['do_freeze_sigen3d = True', 'do_sigen3d = True']
-groups['frozen_gen3d'] = ['do_freeze_gen3d = True', 'do_gen3d = True']
-# groups['frozen_ego'] = ['do_freeze_ego = True', 'do_ego = True']
-# groups['frozen_inp'] = ['do_freeze_inp = True', 'do_inp = True']
+# groups['pretrained_sigen3d'] = [
+#     'do_sigen3d = True',
+#     'sigen3d_init = "' + pret_carla.sigen3d_init + '"',
+# ]
+# groups['pretrained_conf'] = [
+#     'do_conf = True',
+#     'conf_init = "' + pret_carla.conf_init + '"',
+# ]
+# groups['pretrained_up3D'] = [
+#     'do_up3D = True',
+#     'up3D_init = "' + pret_carla.up3D_init + '"',
+# ]
+# groups['pretrained_center'] = [
+#     'do_center = True',
+#     'center_init = "' + pret_carla.center_init + '"',
+# ]
+# groups['pretrained_seg'] = [
+#     'do_seg = True',
+#     'seg_init = "' + pret_carla.seg_init + '"',
+# ]
+# groups['pretrained_motionreg'] = [
+#     'do_motionreg = True',
+#     'motionreg_init = "' + pret_carla.motionreg_init + '"',
+# ]
+# groups['pretrained_gen3d'] = [
+#     'do_gen3d = True',
+#     'gen3d_init = "' + pret_carla.gen3d_init + '"',
+# ]
+# groups['pretrained_vq2d'] = [
+#     'do_vq2d = True',
+#     'vq2d_init = "' + pret_carla.vq2d_init + '"',
+#     'vq2d_num_embeddings = %d' % pret_carla.vq2d_num_embeddings,
+# ]
+# groups['pretrained_vq3d'] = [
+#     'do_vq3d = True',
+#     'vq3d_init = "' + pret_carla.vq3d_init + '"',
+#     'vq3d_num_embeddings = %d' % pret_carla.vq3d_num_embeddings,
+# ]
+# groups['pretrained_feat2D'] = [
+#     'do_feat2D = True',
+#     'feat2D_init = "' + pret_carla.feat2D_init + '"',
+#     'feat2D_dim = %d' % pret_carla.feat2D_dim,
+# ]
+# groups['pretrained_feat3D'] = [
+#     'do_feat3D = True',
+#     'feat3D_init = "' + pret_carla.feat3D_init + '"',
+#     'feat3D_dim = %d' % pret_carla.feat3D_dim,
+# ]
+# groups['pretrained_match'] = [
+#     'do_match = True',
+#     'match_init = "' + pret_carla.match_init + '"',
+# ]
+# groups['pretrained_rigid'] = [
+#     'do_rigid = True',
+#     'rigid_init = "' + pret_carla.rigid_init + '"',
+# ]
+# # groups['pretrained_pri2D'] = [
+# #     'do_pri2D = True',
+# #     'pri2D_init = "' + pret_carla.pri2D_init + '"',
+# # ]
+# groups['pretrained_det'] = [
+#     'do_det = True',
+#     'det_init = "' + pret_carla.det_init + '"',
+# ]
+# groups['pretrained_forecast'] = [
+#     'do_forecast = True',
+#     'forecast_init = "' + pret_carla.forecast_init + '"',
+# ]
+# groups['pretrained_view'] = [
+#     'do_view = True',
+#     'view_init = "' + pret_carla.view_init + '"',
+#     'view_depth = %d' %  pret_carla.view_depth,
+#     'feat2D_dim = %d' %  pret_carla.feat2D_dim,
+#     # 'view_use_halftanh = ' + str(pret_carla.view_use_halftanh),
+#     # 'view_pred_embs = ' + str(pret_carla.view_pred_embs),
+#     # 'view_pred_rgb = ' + str(pret_carla.view_pred_rgb),
+# ]
+# groups['pretrained_flow'] = ['do_flow = True',
+#                              'flow_init = "' + pret_carla.flow_init + '"',
+# ]
+# # groups['pretrained_tow'] = ['do_tow = True',
+# #                             'tow_init = "' + pret_carla.tow_init + '"',
+# # ]
+# groups['pretrained_emb2D'] = ['do_emb2D = True',
+#                               'emb2D_init = "' + pret_carla.emb2D_init + '"',
+#                               # 'emb_dim = %d' % pret_carla.emb_dim,
+# ]
+# groups['pretrained_occ'] = ['do_occ = True',
+#                             'occ_init = "' + pret_carla.occ_init + '"',
+# ]
+# groups['pretrained_preocc'] = [
+#     'do_preocc = True',
+#     'preocc_init = "' + pret_carla.preocc_init + '"',
+# ]
+# groups['pretrained_vis'] = ['do_vis = True',
+#                             'vis_init = "' + pret_carla.vis_init + '"',
+#                             # 'occ_cheap = ' + str(pret_carla.occ_cheap),
+# ]
+# groups['total_init'] = ['total_init = "' + pret_carla.total_init + '"']
+# groups['pretrained_optim'] = ['optim_init = "' + pret_carla.optim_init + '"']
+
+# groups['frozen_conf'] = ['do_freeze_conf = True', 'do_conf = True']
+# groups['frozen_motionreg'] = ['do_freeze_motionreg = True', 'do_motionreg = True']
+# groups['frozen_feat2D'] = ['do_freeze_feat2D = True', 'do_feat2D = True']
+# groups['frozen_feat3D'] = ['do_freeze_feat3D = True', 'do_feat3D = True']
+# groups['frozen_up3D'] = ['do_freeze_up3D = True', 'do_up3D = True']
+# groups['frozen_vq3d'] = ['do_freeze_vq3d = True', 'do_vq3d = True']
+# groups['frozen_view'] = ['do_freeze_view = True', 'do_view = True']
+# groups['frozen_center'] = ['do_freeze_center = True', 'do_center = True']
+# groups['frozen_seg'] = ['do_freeze_seg = True', 'do_seg = True']
+# groups['frozen_vis'] = ['do_freeze_vis = True', 'do_vis = True']
+# groups['frozen_flow'] = ['do_freeze_flow = True', 'do_flow = True']
+# groups['frozen_match'] = ['do_freeze_match = True', 'do_match = True']
+# groups['frozen_emb2D'] = ['do_freeze_emb2D = True', 'do_emb2D = True']
+# groups['frozen_pri2D'] = ['do_freeze_pri2D = True', 'do_pri2D = True']
+# groups['frozen_occ'] = ['do_freeze_occ = True', 'do_occ = True']
+# groups['frozen_vq2d'] = ['do_freeze_vq2d = True', 'do_vq2d = True']
+# groups['frozen_vq3d'] = ['do_freeze_vq3d = True', 'do_vq3d = True']
+# groups['frozen_sigen3d'] = ['do_freeze_sigen3d = True', 'do_sigen3d = True']
+# groups['frozen_gen3d'] = ['do_freeze_gen3d = True', 'do_gen3d = True']
+# # groups['frozen_ego'] = ['do_freeze_ego = True', 'do_ego = True']
+# # groups['frozen_inp'] = ['do_freeze_inp = True', 'do_inp = True']

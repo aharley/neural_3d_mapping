@@ -3,7 +3,6 @@ import torch.nn as nn
 import hyperparams as hyp
 import numpy as np
 # import imageio,scipy
-# from sklearn.cluster import KMeans
 
 from model_base import Model
 from nets.occnet import OccNet
@@ -12,10 +11,10 @@ from nets.feat3dnet import Feat3dNet
 from nets.emb2dnet import Emb2dNet
 from nets.emb3dnet import Emb3dNet
 from nets.viewnet import ViewNet
+from nets.egonet import EgoNet
 
 import torch.nn.functional as F
 
-# from utils.basic import *
 import utils.vox
 import utils.samp
 import utils.geom
@@ -28,7 +27,6 @@ np.set_printoptions(precision=2)
 np.random.seed(0)
 
 class CARLA_EGO(Model):
-    # torch.set_default_tensor_type('torch.cuda.FloatTensor')
     def initialize_model(self):
         print('------ INITIALIZING MODEL OBJECTS ------')
         self.model = CarlaEgoModel()
@@ -70,11 +68,20 @@ class CarlaEgoModel(nn.Module):
             self.feat2dnet_slow = Feat2dNet(in_dim=3)
             
         if hyp.do_feat3d:
-            self.feat3dnet = Feat3dNet(in_dim=4)
+            self.feat3dnet = Feat3dNet(in_dim=1)
+        if hyp.do_ego:
+            self.egonet = EgoNet(
+                R=hyp.ego_num_rots,
+                rot_max=hyp.ego_rot_max,
+                num_scales=hyp.ego_num_scales,
+                max_disp_h=hyp.ego_max_disp_h,
+                max_disp_w=hyp.ego_max_disp_w,
+                max_disp_d=hyp.ego_max_disp_d)
+
         if hyp.do_emb3d:
             self.emb3dnet = Emb3dNet()
             # make a slow net
-            self.feat3dnet_slow = Feat3dNet(in_dim=4)
+            self.feat3dnet_slow = Feat3dNet(in_dim=1)
 
     def prepare_common_tensors(self, feed):
         results = dict()
@@ -112,311 +119,202 @@ class CarlaEgoModel(nn.Module):
         self.S = feed['set_seqlen']
         
 
-        self.origin_T_camRs = feed['origin_T_camRs']
-        self.origin_T_camXs = feed['origin_T_camXs']
+        self.origin_T_cams = feed['origin_T_camXs']
+        # self.camX0s_T_cams = utils.geom.get_camM_T_camXs(self.origin_T_camXs, ind=0)
 
-        self.camX0s_T_camXs = utils.geom.get_camM_T_camXs(self.origin_T_camXs, ind=0)
-        self.camR0s_T_camRs = utils.geom.get_camM_T_camXs(self.origin_T_camRs, ind=0)
-        self.camRs_T_camR0s = __u(utils.geom.safe_inverse(__p(self.camR0s_T_camRs)))
-        self.camRs_T_camXs = __u(torch.matmul(__p(self.origin_T_camRs).inverse(), __p(self.origin_T_camXs)))
-        self.camXs_T_camRs = __u(__p(self.camRs_T_camXs).inverse())
+        self.xyz_cams = feed['xyz_camXs']
+        # self.xyz_camX0s = __u(utils.geom.apply_4x4(__p(self.camX0s_T_camXs), __p(self.xyz_camXs)))
 
-        self.xyz_camXs = feed['xyz_camXs']
-        self.xyz_camRs = __u(utils.geom.apply_4x4(__p(self.camRs_T_camXs), __p(self.xyz_camXs)))
-        self.xyz_camX0s = __u(utils.geom.apply_4x4(__p(self.camX0s_T_camXs), __p(self.xyz_camXs)))
-        
-        if self.set_name=='test' or self.set_name=='val':
-            # fixed centroid
-            scene_centroid_x = 0.0
-            scene_centroid_y = 1.0
-            scene_centroid_z = 18.0
-        else:
-            # randomize a bit, as a form of data aug
-            all_ok = False
-            num_tries = 0
-            while (not all_ok) and (num_tries < 100):
-                scene_centroid_x = np.random.uniform(-8.0, 8.0)
-                scene_centroid_y = np.random.uniform(-1.5, 3.0)
-                scene_centroid_z = np.random.uniform(10.0, 26.0)
-                scene_centroid = np.array([scene_centroid_x,
-                                           scene_centroid_y,
-                                           scene_centroid_z]).reshape([1, 3])
-                self.scene_centroid = torch.from_numpy(scene_centroid).float().cuda()
-                num_tries += 1
-                all_ok = True
-                self.vox_util = utils.vox.Vox_util(self.Z, self.Y, self.X, self.set_name, scene_centroid=self.scene_centroid, assert_cube=True)
-                # we want to ensure this gives us a few points inbound for each element
-                inb = __u(self.vox_util.get_inbounds(__p(self.xyz_camX0s), self.Z, self.Y, self.X, already_mem=False))
-                # this is B x S x N
-                num_inb = torch.sum(inb.float(), axis=2)
-                # this is B x S
+        scene_centroid_x = 0.0
+        scene_centroid_y = 1.0
+        scene_centroid_z = 18.0
+        scene_centroid = np.array([scene_centroid_x,
+                                   scene_centroid_y,
+                                   scene_centroid_z]).reshape([1, 3])
+        self.scene_centroid = torch.from_numpy(scene_centroid).float().cuda()
+        self.vox_util = utils.vox.Vox_util(self.Z, self.Y, self.X, self.set_name, scene_centroid=self.scene_centroid, assert_cube=True)
+        # if self.set_name=='test' or self.set_name=='val':
+        #     # fixed centroid
+        #     scene_centroid_x = 0.0
+        #     scene_centroid_y = 1.0
+        #     scene_centroid_z = 18.0
+        # else:
+        #     # randomize a bit, as a form of data aug
+        #     all_ok = False
+        #     num_tries = 0
+        #     while (not all_ok) and (num_tries < 100):
+        #         scene_centroid_x = np.random.uniform(-8.0, 8.0)
+        #         scene_centroid_y = np.random.uniform(-1.5, 3.0)
+        #         scene_centroid_z = np.random.uniform(10.0, 26.0)
+        #         scene_centroid = np.array([scene_centroid_x,
+        #                                    scene_centroid_y,
+        #                                    scene_centroid_z]).reshape([1, 3])
+        #         self.scene_centroid = torch.from_numpy(scene_centroid).float().cuda()
+        #         num_tries += 1
+        #         all_ok = True
+        #         self.vox_util = utils.vox.Vox_util(self.Z, self.Y, self.X, self.set_name, scene_centroid=self.scene_centroid, assert_cube=True)
+        #         # we want to ensure this gives us a few points inbound for each element
+        #         inb = __u(self.vox_util.get_inbounds(__p(self.xyz_camX0s), self.Z, self.Y, self.X, already_mem=False))
+        #         # this is B x S x N
+        #         num_inb = torch.sum(inb.float(), axis=2)
+        #         # this is B x S
                 
-                if torch.min(num_inb) < 300:
-                    all_ok = False
-            self.summ_writer.summ_scalar('centroid_sampling/num_tries', float(num_tries))
-            self.summ_writer.summ_scalar('centroid_sampling/num_inb', torch.mean(num_inb).cpu().item())
-            if num_tries >= 100:
-                return False
+        #         if torch.min(num_inb) < 300:
+        #             all_ok = False
+        #     self.summ_writer.summ_scalar('centroid_sampling/num_tries', float(num_tries))
+        #     self.summ_writer.summ_scalar('centroid_sampling/num_inb', torch.mean(num_inb).cpu().item())
+        #     if num_tries >= 100:
+        #         return False
         
         self.vox_size_X = self.vox_util.default_vox_size_X
         self.vox_size_Y = self.vox_util.default_vox_size_Y
         self.vox_size_Z = self.vox_util.default_vox_size_Z
         
-        # _boxlist_camRs = feed['boxlists']
-        # _tidlist_s = feed['tidlists'] # coordinate-less and plural
-        # _scorelist_s = feed['scorelists'] # coordinate-less and plural
-        # _scorelist_s = __u(utils.misc.rescore_boxlist_with_inbound(
-        #     utils.geom.eye_4x4(self.B*self.S),
-        #     __p(_boxlist_camRs),
-        #     __p(_tidlist_s),
-        #     self.Z, self.Y, self.X,
-        #     self.vox_util,
-        #     only_cars=False, pad=2.0))
-        # boxlist_camRs_, tidlist_s_, scorelist_s_ = utils.misc.shuffle_valid_and_sink_invalid_boxes(
-        #     __p(_boxlist_camRs), __p(_tidlist_s), __p(_scorelist_s))
-        # self.boxlist_camRs = __u(boxlist_camRs_)
-        # self.tidlist_s = __u(tidlist_s_)
-        # self.scorelist_s = __u(scorelist_s_)
-
-        # for b in list(range(self.B)):
-        #     # if torch.sum(scorelist_s[b,0]) == 0:
-        #     if torch.sum(self.scorelist_s[:,0]) < (self.B/2): # not worth it; return early
-        #         return 0.0, None, True
-
-        # lrtlist_camRs_, obj_lens_ = utils.misc.parse_boxes(__p(feed['boxlists']), __p(self.origin_T_camRs))
-        origin_T_camRs_ = self.origin_T_camRs.reshape(self.B, self.S, 1, 4, 4).repeat(1, 1, self.N, 1, 1).reshape(self.B*self.S, self.N, 4, 4)
-        boxlists = feed['boxlists']
-        self.scorelist_s = feed['scorelists']
-        self.tidlist_s = feed['tidlists']
-        # print('boxlists', boxlists.shape)
-        boxlists_ = boxlists.reshape(self.B*self.S, self.N, 9)
-        lrtlist_camRs_, _ = utils.misc.parse_boxes(boxlists_, origin_T_camRs_)
-        self.lrtlist_camRs = lrtlist_camRs_.reshape(self.B, self.S, self.N, 19)
-        
-        # origin_T_camRs_ = self.origin_T_camRs.reshape(self.B, self.S, 1, 4, 4)
-        # self.lrtlist_camRs = utils.misc.parse_boxes(box_camRs, origin_T_camRs)
-        # self.lrtlist_camRs = __u(utils.geom.convert_boxlist_to_lrtlist(__p(self.boxlist_camRs)))
-        self.lrtlist_camR0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camR0s_T_camRs), __p(self.lrtlist_camRs)))
-        self.lrtlist_camXs = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camXs_T_camRs), __p(self.lrtlist_camRs)))
-        self.lrtlist_camX0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camX0s_T_camXs), __p(self.lrtlist_camXs)))
-
         self.rgb_camXs = feed['rgb_camXs']
-        visX_e = []
-        for s in list(range(0, self.S, 2)):
-            visX_e.append(self.summ_writer.summ_lrtlist(
-                '', self.rgb_camXs[:,s],
-                self.lrtlist_camXs[:,s],
-                self.scorelist_s[:,s],
-                self.tidlist_s[:,s],
-                self.pix_T_cams[:,s], only_return=True))
-        self.summ_writer.summ_rgbs('obj/box_camXs_g', visX_e)
-
-        ## get the projected depthmap and inbound mask
-        self.depth_camXs_, self.valid_camXs_ = utils.geom.create_depth_image(__p(self.pix_T_cams), __p(self.xyz_camXs), self.H, self.W)
-        self.dense_xyz_camXs_ = utils.geom.depth2pointcloud(self.depth_camXs_, __p(self.pix_T_cams))
-        # we need to go to X0 to see what will be inbounds
-        self.dense_xyz_camX0s_ = utils.geom.apply_4x4(__p(self.camX0s_T_camXs), self.dense_xyz_camXs_)
-        self.inbound_camXs_ = self.vox_util.get_inbounds(self.dense_xyz_camX0s_, self.Z, self.Y, self.X).float()
-        self.inbound_camXs_ = torch.reshape(self.inbound_camXs_, [self.B*self.S, 1, self.H, self.W])
-        self.depth_camXs = __u(self.depth_camXs_)
-        self.valid_camXs = __u(self.valid_camXs_) * __u(self.inbound_camXs_)
-        self.summ_writer.summ_oned('2d_inputs/depth_camX0', self.depth_camXs[:,0], maxval=32.0)
-        self.summ_writer.summ_oned('2d_inputs/valid_camX0', self.valid_camXs[:,0], norm=False)
-        self.summ_writer.summ_rgb('2d_inputs/rgb_camX0', self.rgb_camXs[:,0])
 
         # get 3d voxelized inputs
-        self.occ_memXs = __u(self.vox_util.voxelize_xyz(__p(self.xyz_camXs), self.Z, self.Y, self.X))
-        self.unp_memXs = __u(self.vox_util.unproject_rgb_to_mem(
-            __p(self.rgb_camXs), self.Z, self.Y, self.X, __p(self.pix_T_cams)))
+        self.occ_mems = __u(self.vox_util.voxelize_xyz(__p(self.xyz_cams), self.Z, self.Y, self.X))
+        # self.unp_mems = __u(self.vox_util.unproject_rgb_to_mem(
+        #     __p(self.rgb_camXs), self.Z, self.Y, self.X, __p(self.pix_T_cams)))
         # these are B x C x Z x Y x X
-        self.summ_writer.summ_occs('3d_inputs/occ_memXs', torch.unbind(self.occ_memXs, dim=1))
-        self.summ_writer.summ_unps('3d_inputs/unp_memXs', torch.unbind(self.unp_memXs, dim=1), torch.unbind(self.occ_memXs, dim=1))
+        self.summ_writer.summ_occs('3d_inputs/occ_mems', torch.unbind(self.occ_mems, dim=1))
+        # self.summ_writer.summ_unps('3d_inputs/unp_memXs', torch.unbind(self.unp_memXs, dim=1), torch.unbind(self.occ_memXs, dim=1))
         
         return True # OK
 
-    def run_train(self, feed):
-        results = dict()
-
-        global_step = feed['global_step']
+    def run_localizer(self, feed):
         total_loss = torch.tensor(0.0).cuda()
-
         __p = lambda x: utils.basic.pack_seqdim(x, self.B)
         __u = lambda x: utils.basic.unpack_seqdim(x, self.B)
+        results = dict()
 
-        #####################
-        ## run the nets
-        #####################
+        assert(hyp.do_ego)
 
-        if hyp.do_feat2d:
-            feat2d_loss, feat_camX0 = self.feat2dnet(
-                self.rgb_camXs[:,0],
-                self.summ_writer,
-            )
-            if hyp.do_emb2d:
-                # for stability, we will also use a slow net here
-                _, altfeat_camX0 = self.feat2dnet_slow(self.rgb_camXs[:,0])
-        
-        if hyp.do_feat3d:
-            # start with a 4-channel feature map;
-            feat_memXs_input = torch.cat([
-                self.occ_memXs,
-                self.unp_memXs*self.occ_memXs,
-            ], dim=2)
+        results['poses'] = []
 
-            # featurize
-            feat3d_loss, feat_memXs_ = self.feat3dnet(
-                __p(feat_memXs_input[:,1:]), self.summ_writer)
-            feat_memXs = __u(feat_memXs_)
-            total_loss += feat3d_loss
+        # occ_mems is B x C x 1 x Z x Y x X
+        occ_mems = []
 
-            valid_memXs = torch.ones_like(feat_memXs[:,:,0:1])
-            feat_memRs = self.vox_util.apply_4x4s_to_voxs(self.camRs_T_camXs[:,1:], feat_memXs)
-            valid_memRs = self.vox_util.apply_4x4s_to_voxs(self.camRs_T_camXs[:,1:], valid_memXs)
-            # these are B x S x C x Z2 x Y2 x X2
+        feats_1_halfmem = None
+        occ_1_mem = None
 
-            feat_memR = utils.basic.reduce_masked_mean(
-                feat_memRs, valid_memRs, dim=1)
-            valid_memR = torch.max(valid_memRs, dim=1)[0]
-            # these are B x C x Z2 x Y2 x X2
-            self.summ_writer.summ_feat('feat3d/feat_output_agg', feat_memR, valid_memR, pca=True)
+        # We might be able to allow for a larger displacement based on pyramid effects,
+        # but the math starts to get complex and this should be good enough
+        distance_bounds = torch.Tensor([hyp.ZMAX - hyp.ZMIN,
+                                        hyp.XMAX - hyp.XMIN])
+        spatial_feat_dims = torch.tensor([hyp.Z, hyp.X])
+        # In meters
+        voxel_dims = distance_bounds / spatial_feat_dims / (1./hyp.ego_num_scales)
+        max_allowable_displacement = torch.min(voxel_dims * torch.Tensor([hyp.ego_max_disp_d, hyp.ego_max_disp_w]))
 
-            if hyp.do_emb3d:
-                _, altfeat_memR = self.feat3dnet_slow(feat_memXs_input[:,0])
-                altvalid_memR = torch.ones_like(altfeat_memR[:,0:1])
-                self.summ_writer.summ_feat('feat3d/altfeat_input', feat_memXs_input[:,0], pca=True)
-                self.summ_writer.summ_feat('feat3d/altfeat_output', altfeat_memR, pca=True)
-            
-        if hyp.do_occ:
-            assert(hyp.do_feat3d)
-            occ_memR_sup, free_memR_sup, _, _ = self.vox_util.prep_occs_supervision(
-                self.camRs_T_camXs,
-                self.xyz_camXs,
-                self.Z2, self.Y2, self.X2,
-                agg=True)
-            occ_loss, occ_memR_pred = self.occnet(
-                feat_memR, 
-                occ_memR_sup,
-                free_memR_sup,
-                valid_memR, 
-                self.summ_writer)
-            total_loss += occ_loss
+        # We wish to iterate over the sequence dimension across all batches
+        for index in range(self.S):
+            if self.S > 2:
+                print(f'Handling iter {index}')
 
-        if hyp.do_view:
-            assert(hyp.do_feat3d)
-            # decode the perspective volume into an image
-            view_loss, rgb_camX0_e, viewfeat_camX0 = self.viewnet(
-                self.pix_T_cams[:,0],
-                self.camXs_T_camRs[:,0],
-                feat_memR, 
-                self.rgb_camXs[:,0],
+            feats_0_halfmem = feats_1_halfmem
+            occ_0_mem = occ_1_mem
+
+            xyz_cam1 = self.xyz_cams[:, index]
+
+            if index != 0:
+                # Build the ground truth matrix so we can calculate error
+                origin_T_cam1 = self.origin_T_cams[:, index]
+                origin_T_cam0 = self.origin_T_cams[:, index-1]
+                cam0_T_cam1 = utils.basic.matmul2(utils.geom.safe_inverse(origin_T_cam0), origin_T_cam1)
+                cam1_T_cam0 = utils.geom.safe_inverse(cam0_T_cam1)
+
+                # Handle synthetic transformations if necessary
+                if feed['set_name'] == 'train' and torch.randn(1) < hyp.ego_synth_prob:
+                    synthcam_T_cam0 = utils.geom.get_random_rt(self.B,
+                                                               r_amount=hyp.ego_rot_max,
+                                                               t_amount=max_allowable_displacement)
+                    synthcam_T_cam1 = utils.basic.matmul2(synthcam_T_cam0, cam0_T_cam1)
+                    xyz_synthcam = utils.geom.apply_4x4(synthcam_T_cam1, xyz_cam1)
+
+                    xyz_cam1 = xyz_synthcam
+                    cam1_T_cam0 = synthcam_T_cam0
+                    cam0_T_cam1 = utils.geom.safe_inverse(cam1_T_cam0)
+                    origin_T_cam1 = utils.basic.matmul2(origin_T_cam0, cam0_T_cam1)
+
+            occ_1_mem = self.vox_util.voxelize_xyz(xyz_cam1, self.Z, self.Y, self.X)
+            # unp_1_mem = utils.vox.unproject_rgb_to_mem(self.rgb_cams[:, index], self.Z, self.Y, self.X, self.pix_T_cams[:, index])
+
+            occ_mems.append(occ_1_mem.clone().cpu())
+            # unp_mems.append(unp_1_mem.clone().cpu())
+            feats_input = occ_1_mem.clone()
+
+            feat_loss, feats_1_halfmem = self.feat3dnet(feats_input, self.summ_writer)
+            total_loss += feat_loss
+
+            if index == 0:
+                continue
+
+            # Estimated transformation is previous_T_current
+            transformation_loss, cam0_T_cam1_e, _ = self.egonet(
+                feats_0_halfmem,
+                feats_1_halfmem,
+                cam0_T_cam1,
                 self.vox_util,
-                valid=self.valid_camXs[:,0],
-                summ_writer=self.summ_writer)
-            total_loss += view_loss
-            
-        if hyp.do_emb2d:
-            assert(hyp.do_feat2d)
-            
-            if hyp.do_view:
-                # anchor against the bottom-up 2d net
-                valid_camX0 = F.interpolate(self.valid_camXs[:,0], scale_factor=0.5, mode='nearest')
-                emb2d_loss, _ = self.emb2dnet(
-                    viewfeat_camX0,
-                    feat_camX0,
-                    valid_camX0,
-                    summ_writer=self.summ_writer,
-                    suffix='_view')
-                total_loss += emb2d_loss
-
-            # anchor against the slow net
-            emb2d_loss, _ = self.emb2dnet(
-                feat_camX0,
-                altfeat_camX0,
-                torch.ones_like(feat_camX0[:,0:1]),
-                summ_writer=self.summ_writer,
-                suffix='_slow')
-            total_loss += emb2d_loss
-
-        if hyp.do_emb3d:
-            assert(hyp.do_feat3d)
-            # compute 3D ML
-            emb3d_loss = self.emb3dnet(
-                feat_memR,
-                altfeat_memR,
-                valid_memR.round(),
-                altvalid_memR.round(),
                 self.summ_writer)
-            total_loss += emb3d_loss
-            
+
+            cam1_T_cam0_e = utils.geom.safe_inverse(cam0_T_cam1_e.cpu())
+
+            # Save the estimated transformation so that we can visualize it later
+            if len(results['poses']) == 0:
+                results['poses'].append(origin_T_cam0)
+
+            combined = utils.basic.matmul2(results['poses'][-1], cam0_T_cam1_e)
+            results['poses'].append(combined)
+
+            total_loss += transformation_loss
+
+            # Transform the second frame's occupancy based on our estimated transformation
+            transformed_occs = self.vox_util.apply_4x4_to_vox(cam0_T_cam1_e.cuda(), occ_1_mem)
+            # Visualize this result and compare it to the actual first frame
+            self.summ_writer.summ_occs('3d_outputs/transformed_occ', (transformed_occs, occ_0_mem))
+            # Visualize the untrasformed frames so we can see if we're improving
+            self.summ_writer.summ_occs('3d_outputs/occs_original', (occ_1_mem, occ_0_mem))
+
+            if hyp.ego_map_mode is not None:
+                transformed_feats_0_halfmem = self.vox_util.apply_4x4_to_vox(cam1_T_cam0_e.cuda(), feats_0_halfmem)
+                self.summ_writer.summ_feats('3d_feats/feats_recurrent_transformed',
+                                            (transformed_feats_0_halfmem, feats_1_halfmem),
+                                            pca=True)
+                if hyp.ego_map_mode == 'simple mean':
+                    feats_1_halfmem = transformed_feats_0_halfmem
+                elif hyp.ego_map_mode == 'masked mean':
+                    # B x D x W
+                    # We're assuming that a section of the image is 0 if all columns and channels in it are 0.
+                    # Could break under certain circumstances, but saves a lot of memory and seems reasonable in general.
+                    reduced_transformed_feats_0_halfmem = torch.sum(transformed_feats_0_halfmem, axis=(1, 3))
+                    # Something x 3
+                    zero_indices = torch.nonzero(reduced_transformed_feats_0_halfmem  == 0)
+
+                    meaned_feats_halfmem = torch.mean(torch.stack((feats_1_halfmem, transformed_feats_0_halfmem)), dim=0).cuda()
+                    rewritten_feats_halfmem = meaned_feats_halfmem
+                    values_to_copy = feats_1_halfmem[zero_indices[:, 0], :, zero_indices[:, 1], :, zero_indices[:, 2]]
+                    rewritten_feats_halfmem[zero_indices[:, 0], :, zero_indices[:, 1], :, zero_indices[:, 2]] = values_to_copy
+                    feats_1_halfmem = rewritten_feats_halfmem
+                else:
+                    raise ValueError('Invalid map type: ego_map_mode must be one of "simple mean" or "masked mean"')
+                self.summ_writer.summ_feat('3d_feats/combined_feats',
+                                            feats_1_halfmem,
+                                            pca=True)
+
+        # self.summ_writer.summ_feats('3d_feats/feats_input', torch.unbind(feats_input, dim=0), pca=False)
+        self.summ_writer.summ_scalar('transformation_loss/mse', transformation_loss)
+
+        # visualize what we got
+        # if self.include_image_summs:
+        self.summ_writer.summ_occs('3d_inputs/occ_mems', [occ.cuda() for occ in occ_mems])#, use_cuda=False)
+        # self.summ_writer.summ_unps('3d_inputs/unp_mems', unp_mems, occ_mems)
+        # rgb_cams_cpu = [rgb_cam.cpu() for rgb_cam in self.rgb_cams]
+        # self.summ_writer.summ_rgbs('2D_inputs/rgb_cams', rgb_cams_cpu)
+
         self.summ_writer.summ_scalar('loss', total_loss.cpu().item())
         return total_loss, results, False
-
-    def run_test(self, feed):
-        results = dict()
-
-        global_step = feed['global_step']
-        total_loss = torch.tensor(0.0).cuda()
-        # total_loss = torch.autograd.Variable(0.0, requires_grad=True).cuda()
-
-        __p = lambda x: utils.basic.pack_seqdim(x, self.B)
-        __u = lambda x: utils.basic.unpack_seqdim(x, self.B)
-
-        # get the boxes
-        boxlist_camRs = feed['boxlists']
-        tidlist_s = feed['tidlists'] # coordinate-less and plural
-        scorelist_s = feed['scorelists'] # coordinate-less and plural
-        
-        lrtlist_camRs = __u(utils.geom.convert_boxlist_to_lrtlist(__p(boxlist_camRs))).reshape(self.B, self.S, self.N, 19)
-        lrtlist_camXs = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camXs_T_camRs), __p(lrtlist_camRs)))
-        # these are is B x S x N x 19
-
-        self.summ_writer.summ_lrtlist('obj/lrtlist_camX0', self.rgb_camXs[:,0], lrtlist_camXs[:,0],
-                                      scorelist_s[:,0], tidlist_s[:,0], self.pix_T_cams[:,0])
-        self.summ_writer.summ_lrtlist('obj/lrtlist_camR0', self.rgb_camRs[:,0], lrtlist_camRs[:,0],
-                                      scorelist_s[:,0], tidlist_s[:,0], self.pix_T_cams[:,0])
-        # mask_memX0 = utils.vox.assemble_padded_obj_masklist(
-        #     lrtlist_camXs[:,0], scorelist_s[:,0], self.Z2, self.Y2, self.X2, coeff=1.0)
-        # mask_memX0 = torch.sum(mask_memX0, dim=1).clamp(0, 1) 
-        # self.summ_writer.summ_oned('obj/mask_memX0', mask_memX0, bev=True)
-
-        mask_memXs = __u(utils.vox.assemble_padded_obj_masklist(
-            __p(lrtlist_camXs), __p(scorelist_s), self.Z2, self.Y2, self.X2, coeff=1.0))
-        mask_memXs = torch.sum(mask_memXs, dim=2).clamp(0, 1)
-        self.summ_writer.summ_oneds('obj/mask_memXs', torch.unbind(mask_memXs, dim=1), bev=True)
-
-        for b in list(range(self.B)):
-            for s in list(range(self.S)):
-                mask = mask_memXs[b,s]
-                if torch.sum(mask) < 2.0:
-                    # return early
-                    return total_loss, None, True
-                
-        # next: i want to treat features differently if they are in obj masks vs not
-        # in particular, i want a different kind of retrieval metric
-        
-        if hyp.do_feat3d:
-            # occXs is B x S x 1 x H x W x D
-            # unpXs is B x S x 3 x H x W x D
-            feat_memXs_input = torch.cat([self.occXs, self.occXs*self.unpXs], dim=2)
-            feat_memXs_input_ = __p(feat_memXs_input)
-
-            feat_memXs_, _, _ = self.feat3dnet(
-                feat_memXs_input_,
-                self.summ_writer,
-                comp_mask=None,
-            )
-            feat_memXs = __u(feat_memXs_)
-                                    
-            self.summ_writer.summ_feats('3d_feats/feat_memXs_input', torch.unbind(feat_memXs_input, dim=1), pca=True)
-            self.summ_writer.summ_feats('3d_feats/feat_memXs_output', torch.unbind(feat_memXs, dim=1), pca=True)
-
-            mv_precision = utils.eval.measure_semantic_retrieval_precision(feat_memXs[0], mask_memXs[0])
-            self.summ_writer.summ_scalar('semantic_retrieval/multiview_precision', mv_precision)
-            ms_precision = utils.eval.measure_semantic_retrieval_precision(feat_memXs[:,0], mask_memXs[:,0])
-            self.summ_writer.summ_scalar('semantic_retrieval/multiscene_precision', ms_precision)
-            
-        return total_loss, None, False
-            
+    
     def forward(self, feed):
         data_ok = self.prepare_common_tensors(feed)
 
@@ -426,9 +324,9 @@ class CarlaEgoModel(nn.Module):
             return total_loss, None, True
         else:
             if self.set_name=='train':
-                return self.run_train(feed)
-            elif self.set_name=='test':
-                return self.run_test(feed)
+                return self.run_localizer(feed)
+            # elif self.set_name=='test':
+            #     return self.run_test(feed)
             else:
                 print('weird set_name:', set_name)
                 assert(False)

@@ -152,12 +152,22 @@ flow_do_synth_rt = False
 flow_heatmap_size = 4
 
 #----------- ego hypers -----------#
-ego_use_gt = False
-ego_use_precomputed = False
 ego_rtd_coeff = 0.0
 ego_rta_coeff = 0.0
 ego_traj_coeff = 0.0
 ego_warp_coeff = 0.0
+ego_t_l2_coeff = 0.0
+ego_deg_l2_coeff = 0.0
+
+ego_num_rots = 0
+ego_rot_max = 0.0
+ego_num_scales = 1
+ego_max_disp_h = 0
+ego_max_disp_w = 0
+ego_max_disp_d = 0
+
+ego_synth_prob = 0.0
+ego_map_mode = None
 
 #----------- mod -----------#
 
@@ -327,29 +337,23 @@ if do_feat3d:
 
 if do_ego:
     name += "_G"
-    if ego_use_gt:
-        name += "gt"
-    elif ego_use_precomputed:
-        name += "pr"
-    else:
-        if do_freeze_ego:
-            name += "f"
-        else:
-            ego_coeffs = [
-                ego_rtd_coeff,
-                ego_rta_coeff,
-                ego_traj_coeff,
-                ego_warp_coeff,
-            ]
-            ego_prefixes = [
-                "rtd",
-                "rta",
-                "t",
-                "w",
-            ]
-            for l_, l in enumerate(ego_coeffs):
-                if l > 0:
-                    name += "_%s%s" % (ego_prefixes[l_],strnum(l))
+    if do_freeze_ego:
+        name += "f"
+    ego_coeffs = [
+        ego_rtd_coeff,
+        ego_rta_coeff,
+        ego_traj_coeff,
+        ego_warp_coeff,
+    ]
+    ego_prefixes = [
+        "rtd",
+        "rta",
+        "t",
+        "w",
+    ]
+    for l_, l in enumerate(ego_coeffs):
+        if l > 0:
+            name += "_%s%s" % (ego_prefixes[l_],strnum(l))
 
 if do_occ:
     name += "_O"

@@ -3,22 +3,38 @@ from exp_base import *
 ############## choose an experiment ##############
 
 current = 'builder'
+current = 'trainer'
 
 mod = '"eg00"' # nothing; builder
 mod = '"eg01"' # deleted junk
+mod = '"eg02"' # added hyps
+mod = '"eg03"' # train a while
+mod = '"eg04"' # 1 scale
 
 ############## exps ##############
 
 exps['builder'] = [
     'carla_ego', # mode
-    'carla_multiview_10_data', # dataset
+    'carla_traj_10_data', # dataset
     'carla_bounds', 
     '3_iters',
     'lr0',
     'B1',
     'no_shuf',
     'train_feat3d',
+    'train_ego',
     'log1',
+]
+exps['trainer'] = [
+    'carla_ego', # mode
+    'carla_traj_10_data', # dataset
+    'carla_bounds', 
+    '10k_iters',
+    'lr4',
+    'B1',
+    'train_feat3d',
+    'train_ego',
+    'log50',
 ]
 
 ############## groups ##############
@@ -29,6 +45,18 @@ groups['train_feat3d'] = [
     'do_feat3d = True',
     'feat3d_dim = 32',
     'feat3d_smooth_coeff = 0.01',
+]
+groups['train_ego'] = [
+    'do_ego = True',
+    'ego_t_l2_coeff = 1.0',
+    'ego_deg_l2_coeff = 1.0',
+    'ego_num_rots = 11',
+    'ego_rot_max = 4.0',
+    'ego_num_scales = 1',
+    'ego_max_disp_h = 1',
+    'ego_max_disp_w = 2',
+    'ego_max_disp_d = 2',
+    'ego_synth_prob = 0.5',
 ]
 
 ############## datasets ##############
@@ -49,12 +77,13 @@ PW = int(W/2.0)
 
 dataset_location = "/projects/katefgroup/datasets/carla/processed/npzs"
 
-groups['carla_multiview_10_data'] = [
+groups['carla_traj_10_data'] = [
     'dataset_name = "carla"',
     'H = %d' % H,
     'W = %d' % W,
-    'trainset = "mags7i3ten"',
-    'trainset_format = "multiview"', 
+    'trainset = "taqs100i2ten"',
+    'trainset_format = "traj"', 
+    'trainset_consec = False', 
     'trainset_seqlen = %d' % S, 
     'dataset_location = "%s"' % dataset_location,
     'dataset_filetype = "npz"'

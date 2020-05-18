@@ -130,27 +130,26 @@ def load_part(model, part, init):
         if len(ckpt_names) > 0:
             step = max(steps)
             ind = np.argmax(steps)
-            # model_name = 'model-%08d.pth'%(step)
             model_name = ckpt_names[ind]
             path = os.path.join(init_dir, model_name)
-            print("...found checkpoint %s"%(path))
+            print("...found checkpoint %s" % (path))
 
             checkpoint = torch.load(path)
             model_state_dict = model.state_dict()
             # print(model_state_dict.keys())
-            for load_para_name, para in checkpoint['model_state_dict'].items():
-                model_para_name = load_para_name[len(part)+1:]
-                # print(model_para_name, load_para_name)
-                if part+"."+model_para_name != load_para_name:
+            for load_param_name, param in checkpoint['model_state_dict'].items():
+                model_param_name = load_param_name[len(part)+1:]
+                # print('load_param_name', load_param_name, 'model_param_name', model_param_name)
+                if part+"."+model_param_name != load_param_name:
                     continue
                 else:
-                    if model_para_name in model_state_dict.keys():
-                        # print(model_para_name, load_para_name)
-                        # print('param in ckpt', para.data.shape)
-                        # print('param in state dict', model_state_dict[model_para_name].shape)
-                        model_state_dict[model_para_name].copy_(para.data)
+                    if model_param_name in model_state_dict.keys():
+                        # print(model_param_name, load_param_name)
+                        # print('param in ckpt', param.data.shape)
+                        # print('param in state dict', model_state_dict[model_param_name].shape)
+                        model_state_dict[model_param_name].copy_(param.data)
                     else:
-                        print('warning: %s is not in the state dict of the current model' % model_para_name)
+                        print('warning: %s is not in the state dict of the current model' % model_param_name)
         else:
             print("...ain't no %s checkpoint here!"%(part))
     return step

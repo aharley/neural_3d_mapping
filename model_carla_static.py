@@ -68,8 +68,6 @@ class CarlaStaticModel(nn.Module):
             self.emb2dnet = Emb2dNet()
             # make a slow net
             self.feat2dnet_slow = Feat2dNet(in_dim=3)
-            # init slow params with fast params
-            self.feat2dnet_slow.load_state_dict(self.feat2dnet.state_dict())
             
         if hyp.do_feat3d:
             self.feat3dnet = Feat3dNet(in_dim=4)
@@ -77,8 +75,6 @@ class CarlaStaticModel(nn.Module):
             self.emb3dnet = Emb3dNet()
             # make a slow net
             self.feat3dnet_slow = Feat3dNet(in_dim=4)
-            # init slow params with fast params
-            self.feat3dnet_slow.load_state_dict(self.feat3dnet.state_dict())
 
     def prepare_common_tensors(self, feed):
         results = dict()

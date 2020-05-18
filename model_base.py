@@ -32,7 +32,6 @@ class Model(object):
     def initialize_model(self):
         pass
 
-    # take over go() from base
     def go(self):
         self.start_time = time.time()
         self.initialize_model()
@@ -40,11 +39,21 @@ class Model(object):
         
         if hyp.lr > 0:
             params_to_optimize = self.model.parameters()
+            # for k in self.model.state_dict().keys():
+            #     print('key', k)
+            # input()
             self.optimizer = torch.optim.Adam(params_to_optimize, lr=hyp.lr)
         else:
             self.optimizer = None
             
         self.start_iter = saverloader.load_weights(self.model, self.optimizer)
+        
+        # init slow params with fast params
+        if hyp.do_emb2d:
+            self.model.feat2dnet_slow.load_state_dict(self.model.feat2dnet.state_dict())
+        if hyp.do_emb3d:
+            self.model.feat3dnet_slow.load_state_dict(self.model.feat3dnet.state_dict())
+        
         print("------ Done loading weights ------")
 
         set_nums = []

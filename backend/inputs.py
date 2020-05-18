@@ -70,9 +70,6 @@ class NpzDataset(torch.utils.data.Dataset):
         else:
             d = self.non_random_select_single(d, num_samples=self.seqlen)
 
-        if hyp.do_time_flip:
-            d = self.random_time_flip_single(d)
-
         if self.data_format=='simpletraj':
             # for k, v in d.items():
             #     print(k)
@@ -290,21 +287,6 @@ class NpzDataset(torch.utils.data.Dataset):
         batch_new['ind_along_S'] = final_sample
 
         return batch_new
-
-    def random_time_flip_single(self, sample):
-        do_flip = np.random.randint(2) # 0 or 1
-        item_names = self.get_item_names()
-        for item_name in item_names:
-            # print('flipping', item_name)
-            item = sample[item_name]
-            if do_flip > 0.5:
-                # flip along the seq dim, which is 0
-                if torch.is_tensor(item):
-                    item = item.flip(0)
-                else:
-                    item = np.flip(item, axis=0).copy()
-            sample[item_name] = item
-        return sample
 
 def get_inputs():
     dataset_filetype = hyp.dataset_filetype

@@ -14,35 +14,7 @@ groups['carla_bounds'] = [
     'ZMAX = 16.0', # forward 
 ]
 
-############## preprocessing/shuffling ##############
-
-############## modes ##############
-
-groups['zoom'] = ['do_zoom = True']
-groups['carla_mot'] = ['do_carla_mot = True']
-groups['carla_static'] = ['do_carla_static = True']
-groups['carla_flo'] = ['do_carla_flo = True']
-groups['carla_reloc'] = ['do_carla_reloc = True']
-groups['carla_obj'] = ['do_carla_obj = True']
-groups['carla_focus'] = ['do_carla_focus = True']
-groups['carla_track'] = ['do_carla_track = True']
-groups['carla_siamese'] = ['do_carla_siamese = True']
-groups['carla_genocc'] = ['do_carla_genocc = True']
-groups['carla_gengray'] = ['do_carla_gengray = True']
-groups['carla_vqrgb'] = ['do_carla_vqrgb = True']
-groups['carla_vq3drgb'] = ['do_carla_vq3drgb = True']
-groups['carla_precompute'] = ['do_carla_precompute = True']
-groups['carla_propose'] = ['do_carla_propose = True']
-groups['carla_det'] = ['do_carla_det = True']
-groups['intphys_det'] = ['do_intphys_det = True']
-groups['intphys_forecast'] = ['do_intphys_forecast = True']
-groups['carla_forecast'] = ['do_carla_forecast = True']
-groups['carla_pipe'] = ['do_carla_pipe = True']
-groups['intphys_test'] = ['do_intphys_test = True']
-groups['mujoco_offline'] = ['do_mujoco_offline = True']
-groups['carla_pwc'] = ['do_carla_pwc = True']
-
-############## extras ##############
+############## other settings ##############
 
 groups['include_summs'] = [
     'do_include_summs = True',
@@ -69,34 +41,6 @@ groups['train_on_trainval'] = ['backprop_on_train = True',
                                'backprop_on_val = True',
                                'backprop_on_test = False',
 ]
-groups['gt_ego'] = ['ego_use_gt = True']
-groups['precomputed_ego'] = ['ego_use_precomputed = True']
-groups['aug3D'] = ['do_aug3D = True']
-groups['aug2D'] = ['do_aug2D = True']
-
-groups['sparsify_pointcloud_10k'] = ['do_sparsify_pointcloud = 10000']
-groups['sparsify_pointcloud_1k'] = ['do_sparsify_pointcloud = 1000']
-
-groups['horz_flip'] = ['do_horz_flip = True']
-groups['synth_rt'] = ['do_synth_rt = True']
-groups['piecewise_rt'] = ['do_piecewise_rt = True']
-groups['synth_nomotion'] = ['do_synth_nomotion = True']
-groups['aug_color'] = ['do_aug_color = True']
-# groups['eval'] = ['do_eval = True']
-groups['eval_recall'] = ['do_eval_recall = True']
-groups['eval_map'] = ['do_eval_map = True']
-groups['no_eval_recall'] = ['do_eval_recall = False']
-groups['save_embs'] = ['do_save_embs = True']
-groups['save_ego'] = ['do_save_ego = True']
-groups['save_vis'] = ['do_save_vis = True']
-groups['save_outputs'] = ['do_save_outputs = True']
-
-groups['profile'] = ['do_profile = True',
-                     'log_freq_train = 100000000',
-                     'log_freq_val = 100000000',
-                     'log_freq_test = 100000000',
-                     'max_iters = 20']
-
 groups['B1'] = ['trainset_batch_size = 1']
 groups['B2'] = ['trainset_batch_size = 2']
 groups['B4'] = ['trainset_batch_size = 4']

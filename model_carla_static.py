@@ -3,7 +3,6 @@ import torch.nn as nn
 import hyperparams as hyp
 import numpy as np
 # import imageio,scipy
-# from sklearn.cluster import KMeans
 
 from model_base import Model
 from nets.occnet import OccNet
@@ -15,7 +14,6 @@ from nets.viewnet import ViewNet
 
 import torch.nn.functional as F
 
-# from utils.basic import *
 import utils.vox
 import utils.samp
 import utils.geom
@@ -28,7 +26,6 @@ np.set_printoptions(precision=2)
 np.random.seed(0)
 
 class CARLA_STATIC(Model):
-    # torch.set_default_tensor_type('torch.cuda.FloatTensor')
     def initialize_model(self):
         print('------ INITIALIZING MODEL OBJECTS ------')
         self.model = CarlaStaticModel()

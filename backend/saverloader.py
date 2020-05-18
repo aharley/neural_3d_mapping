@@ -145,9 +145,9 @@ def load_part(model, part, init):
                     continue
                 else:
                     if model_para_name in model_state_dict.keys():
-                        print(model_para_name, load_para_name)
-                        print('param in ckpt', para.data.shape)
-                        print('param in state dict', model_state_dict[model_para_name].shape)
+                        # print(model_para_name, load_para_name)
+                        # print('param in ckpt', para.data.shape)
+                        # print('param in state dict', model_state_dict[model_para_name].shape)
                         model_state_dict[model_para_name].copy_(para.data)
                     else:
                         print('warning: %s is not in the state dict of the current model' % model_para_name)

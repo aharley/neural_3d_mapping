@@ -1,4 +1,4 @@
-# import pretrained_nets_carla as pret_carla
+import pretrained_nets_carla as pret_carla
 
 exps = {}
 groups = {}
@@ -262,11 +262,15 @@ groups['no_logging'] = [
 #     'feat2D_init = "' + pret_carla.feat2D_init + '"',
 #     'feat2D_dim = %d' % pret_carla.feat2D_dim,
 # ]
-# groups['pretrained_feat3D'] = [
-#     'do_feat3D = True',
-#     'feat3D_init = "' + pret_carla.feat3D_init + '"',
-#     'feat3D_dim = %d' % pret_carla.feat3D_dim,
-# ]
+groups['pretrained_feat3d'] = [
+    'do_feat3d = True',
+    'feat3d_init = "' + pret_carla.feat3d_init + '"',
+    'feat3d_dim = %d' % pret_carla.feat3d_dim,
+]
+groups['pretrained_occ'] = [
+    'do_occ = True',
+    'occ_init = "' + pret_carla.occ_init + '"',
+]
 # groups['pretrained_match'] = [
 #     'do_match = True',
 #     'match_init = "' + pret_carla.match_init + '"',
@@ -305,9 +309,6 @@ groups['no_logging'] = [
 # groups['pretrained_emb2D'] = ['do_emb2D = True',
 #                               'emb2D_init = "' + pret_carla.emb2D_init + '"',
 #                               # 'emb_dim = %d' % pret_carla.emb_dim,
-# ]
-# groups['pretrained_occ'] = ['do_occ = True',
-#                             'occ_init = "' + pret_carla.occ_init + '"',
 # ]
 # groups['pretrained_preocc'] = [
 #     'do_preocc = True',

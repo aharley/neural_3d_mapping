@@ -84,20 +84,6 @@ def cost_volume_3D(vox0, vox1,
     cost_vol = torch.cat(cost_vol, axis=1)
     return cost_vol
 
-def vis_and_plot_and_return_alignment(feat0, feat1, amount, summ_writer):
-    B, C, D, H, W = list(feat0.size())
-    utils.basic.assert_same_shape(feat0, feat1)
-
-    aligned = torch.abs(torch.mean((feat0 + feat1)*0.5, axis=1, keepdim=True))
-    aligned = torch.where(torch.eq(aligned, 0), torch.max(aligned)*torch.ones_like(aligned), aligned)
-    aligned = utils.basic.normalize(aligned)
-    summ_writer.summ_oned('aligned_%.3f' % amount, torch.mean(aligned, axis=3))
-
-    absdiff = torch.mean(torch.abs(feat1-feat0))
-    summ_writer.summ_scalar('alignment_diff_%.3f' % amount, absdiff)
-    return aligned, absdiff
-
-
 class EgoNet(nn.Module):
     def __init__(self, R, rot_max, num_scales,
                  max_disp_h, max_disp_w, max_disp_d):
@@ -110,10 +96,11 @@ class EgoNet(nn.Module):
         else:
             assert(False) # only 1-2 scales supported right now
         self.R = R # num rots
-        self.rot_max = rot_max # degrees
+        self.rot_max = rot_max # max degrees rotation, on either side of zero
         self.max_disp_h = max_disp_h
         self.max_disp_w = max_disp_w
         self.max_disp_d = max_disp_d
+        
         self.E1 = self.max_disp_d*2 + 1
         self.E2 = self.max_disp_h*2 + 1
         self.E3 = self.max_disp_w*2 + 1
@@ -128,11 +115,7 @@ class EgoNet(nn.Module):
 
         utils.basic.assert_same_shape(feat0, feat1)
 
-        # conv a bit
-        ksize = 3
-        abscount = 0
-
-        summ_writer.summ_feats('feats', [feat0, feat1], pca=True)
+        summ_writer.summ_feats('ego/feats', [feat0, feat1], pca=True)
 
         total_loss, cam0_T_cam1_e, feat1_warped = self.multi_scale_corr3Dr(
             total_loss, feat0, feat1, vox_util, summ_writer, cam0_T_cam1_g, reuse=reuse)
@@ -150,20 +133,14 @@ class EgoNet(nn.Module):
         B, C, D, H, W = list(feat0.size())
         utils.basic.assert_same_shape(feat0, feat1)
 
-        summ_writer.summ_feat('feat0', feat0, pca=True)
-        summ_writer.summ_feat('feat1', feat1, pca=True)
-
-        align, diff = vis_and_plot_and_return_alignment(feat0, feat1, 0.0, summ_writer)
-        alignments.append(align)
+        summ_writer.summ_feat('ego/feat0', feat0, pca=True)
+        summ_writer.summ_feat('ego/feat1', feat1, pca=True)
 
         if (cam0_T_cam1_g is not None):
-            eye = torch.eye(4).cuda()
-            eye = eye.reshape(1, 4, 4)
-            eye = eye.repeat(B, 1, 1)
+            eye = utils.geom.eye_4x4(B)
             _ = eval_against_gt(0, eye, cam0_T_cam1_g, sc=0.0, summ_writer=summ_writer)
 
         feat1_backup = feat1.clone()
-
 
         rots = torch.linspace(-self.rot_max, self.rot_max, self.R)
         rots = torch.reshape(rots, [self.R])
@@ -176,17 +153,7 @@ class EgoNet(nn.Module):
             W_ = int(W*sc)
             D_ = int(D*sc)
 
-            # print('at this resolution, the voxel dimensions are %.2f, %.2f, %.2f meters' % (
-            #     utils.vox.VOX_RANGE_Y/H_,
-            #     utils.vox.VOX_RANGE_X/W_,
-            #     utils.vox.VOX_RANGE_Z/D_,
-            # ))
-
             if not sc==1.0:
-                # feat0_ = utils.vox.vox_resize3D(feat0, [H_, W_, D_])
-                # feat1_ = utils.vox.vox_resize3D(feat1, [H_, W_, D_])
-                # feat0_ = utils.vox.vox_pool3D(feat0, amount=int(1/sc))
-                # feat1_ = utils.vox.vox_pool3D(feat1, amount=int(1/sc))
                 feat0_ = F.interpolate(feat0, scale_factor=sc, mode='trilinear')
                 feat1_ = F.interpolate(feat1, scale_factor=sc, mode='trilinear')
             else:
@@ -201,8 +168,8 @@ class EgoNet(nn.Module):
             assert(valid_W >= 3)
             assert(valid_D >= 3)
 
-            summ_writer.summ_feat('feat0_resized_%.3f' % sc, feat0_, pca=True)
-            summ_writer.summ_feat('feat1_resized_%.3f' % sc, feat1_, pca=True)
+            summ_writer.summ_feat('ego/feat0_resized_%.3f' % sc, feat0_, pca=True)
+            summ_writer.summ_feat('ego/feat1_resized_%.3f' % sc, feat1_, pca=True)
 
             ## now we want to rotate the features into all of the orientations
             # first we define the orientations
@@ -223,7 +190,7 @@ class EgoNet(nn.Module):
             featN_ = vox_util.apply_4x4_to_vox(camN_T_cam1, feat1_)
 
             featN__ = featN_.reshape([B, self.R, C, D_, H_, W_])
-            summ_writer.summ_feats('featN_%.3f_postwarp' % sc, torch.unbind(featN__, axis=1), pca=False)
+            summ_writer.summ_feats('ego/featN_%.3f_postwarp' % sc, torch.unbind(featN__, axis=1), pca=False)
 
             cc = cost_volume_3D(feat0_,
                                 featN_,
@@ -239,7 +206,7 @@ class EgoNet(nn.Module):
             # flesh out the heatmaps
             heat = heat.reshape([B, self.R, 1, self.E1, self.E2, self.E3])
             # have a look
-            summ_writer.summ_oned('heat0_%.3f' % sc, torch.mean(heat[0], axis=-2, keepdim=False))
+            summ_writer.summ_oned('ego/heat_%.3f' % sc, torch.mean(heat[0], axis=-2, keepdim=False))
 
             feat = heat.reshape([B, self.R*self.E])
             feat = F.leaky_relu(feat, negative_slope=0.1)
@@ -280,10 +247,6 @@ class EgoNet(nn.Module):
             feat1 = vox_util.apply_4x4_to_vox(cam0_T_cam1_e, feat1_backup)
             # we will use feat1 in the next iteration of the loop
 
-            align, diff = vis_and_plot_and_return_alignment(feat0, feat1, sc, summ_writer)
-            alignments.append(align)
-            total_loss = utils.misc.add_loss('ego_warp_loss_%.3f' % sc, total_loss, diff, hyp.ego_warp_coeff*sc)
-
             if (cam0_T_cam1_g is not None):
                 total_loss = eval_against_gt(total_loss, cam0_T_cam1_e, cam0_T_cam1_g,
                                              t_coeff=hyp.ego_t_l2_coeff*sc,
@@ -291,5 +254,4 @@ class EgoNet(nn.Module):
                                              sc=sc,
                                              summ_writer=summ_writer)
 
-        summ_writer.summ_feats('incremental_alignment', alignments, pca=False)
         return total_loss, cam0_T_cam1_e, feat1

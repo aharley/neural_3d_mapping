@@ -49,8 +49,16 @@ mod = '"sta38"' # fix small bug in the hyp lettering
 mod = '"sta39"' # cleaned up hyps
 mod = '"sta40"' # weak smooth coeff on feats
 mod = '"sta41"' # run occnet on altfeat instead
+mod = '"sta42"' # redo
+mod = '"sta43"' # replication padding
+mod = '"sta44"' # pret 170k 02_s2_m128x32x128_p64x192_1e-3_F2_d32_F3_d32_s.01_O_c1_s.01_V_d32_e1_E2_e.1_n4_d32_c1_E3_n2_c1_mags7i3t_sta41
+mod = '"sta45"' # inspect and maybe fix the loading; log10
+mod = '"sta46"' # init slow in model base after saverloader
+mod = '"sta47"' # zero padding; log500
+mod = '"sta48"' # replication padding; log500
+mod = '"sta49"' # repeat after deleting some code
 
-############## define experiment ##############
+############## exps ##############
 
 exps['builder'] = [
     'carla_static', # mode
@@ -74,16 +82,20 @@ exps['trainer'] = [
     '300k_iters',
     'lr3',
     'B2',
+    'pretrained_feat3d', 
+    'pretrained_occ', 
     'train_feat3d',
     'train_emb3d',
     'train_occ',
-    'train_view',
-    'train_feat2d',
-    'train_emb2d',
+    # 'train_view',
+    # 'train_feat2d',
+    # 'train_emb2d',
     'log500',
 ]
 
-############## net configs ##############
+############## groups ##############
+
+groups['carla_static'] = ['do_carla_static = True']
 
 groups['train_feat2d'] = [
     'do_feat2d = True',
@@ -97,8 +109,8 @@ groups['train_feat3d'] = [
 ]
 groups['train_occ'] = [
     'do_occ = True',
-    'occ_coeff = 1.0',
-    'occ_smooth_coeff = 0.01',
+    'occ_coeff = 2.0',
+    'occ_smooth_coeff = 0.1',
 ]
 groups['train_view'] = [
     'do_view = True',
@@ -118,9 +130,9 @@ groups['train_emb2d'] = [
 ]
 groups['train_emb3d'] = [
     'do_emb3d = True',
-    'emb3d_ce_coeff = 1.0',
-    # 'emb_3d_l2_coeff = 0.1',
-    # 'emb_3d_mindist = 16.0',
+    'emb3d_ce_coeff = 0.1',
+    # 'emb3d_mindist = 8.0',
+    # 'emb3d_l2_coeff = 0.1',
     'emb3d_num_samples = 2',
 ]
 ############## datasets ##############

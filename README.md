@@ -12,9 +12,9 @@ I am working here on building a clean copy of our ICLR paper's code and results.
 - [x] feat2d
 - [x] emb2d
 - [x] delete unused nets
-- [ ] det
-- [ ] delete unused modes from main and hyps
+- [x] delete unused modes from main and hyps
 - [ ] ego
+- [ ] det
 - [ ] flow
 - [ ] clear readme
 - [ ] nice gif in readme

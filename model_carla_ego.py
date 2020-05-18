@@ -182,135 +182,134 @@ class CarlaEgoModel(nn.Module):
         
         return True # OK
 
-    def run_localizer(self, feed):
+    def run_train(self, feed):
         total_loss = torch.tensor(0.0).cuda()
         __p = lambda x: utils.basic.pack_seqdim(x, self.B)
         __u = lambda x: utils.basic.unpack_seqdim(x, self.B)
         results = dict()
 
         assert(hyp.do_ego)
+        assert(self.S==2)
 
-        results['poses'] = []
+        origin_T_cam0 = self.origin_T_cams[:, 0]
+        origin_T_cam1 = self.origin_T_cams[:, 1]
+        cam0_T_cam1 = utils.basic.matmul2(utils.geom.safe_inverse(origin_T_cam0), origin_T_cam1)
+        # cam1_T_cam0 = utils.geom.safe_inverse(cam0_T_cam1)
 
-        # occ_mems is B x C x 1 x Z x Y x X
-        occ_mems = []
+        #     occ_1_mem = self.vox_util.voxelize_xyz(xyz_cam1, self.Z, self.Y, self.X)
+        feat_mems_input = self.occ_mems.clone()
+        feat_loss, feat_halfmems_ = self.feat3dnet(__p(feat_mems_input), self.summ_writer)
+        feat_halfmems = __u(feat_halfmems_)
+        total_loss += feat_loss
+        
+        ego_loss, cam0_T_cam1_e, _ = self.egonet(
+            feat_halfmems[:,0],
+            feat_halfmems[:,1],
+            cam0_T_cam1,
+            self.vox_util,
+            self.summ_writer)
+        total_loss += ego_loss
 
-        feats_1_halfmem = None
-        occ_1_mem = None
+        # try aligning the frames
+        occ_mem0_e = self.vox_util.apply_4x4_to_vox(cam0_T_cam1_e, self.occ_mems[:,1])
+        self.summ_writer.summ_occs('ego/occs_aligned', [occ_mem0_e, self.occ_mems[:,0]])
+        self.summ_writer.summ_occs('ego/occs_unaligned', [self.occ_mems[:,0], self.occ_mems[:,1]])
+        
+        # results['poses'] = []
 
-        # We might be able to allow for a larger displacement based on pyramid effects,
-        # but the math starts to get complex and this should be good enough
-        distance_bounds = torch.Tensor([hyp.ZMAX - hyp.ZMIN,
-                                        hyp.XMAX - hyp.XMIN])
-        spatial_feat_dims = torch.tensor([hyp.Z, hyp.X])
-        # In meters
-        voxel_dims = distance_bounds / spatial_feat_dims / (1./hyp.ego_num_scales)
-        max_allowable_displacement = torch.min(voxel_dims * torch.Tensor([hyp.ego_max_disp_d, hyp.ego_max_disp_w]))
+        # # occ_mems is B x C x 1 x Z x Y x X
+        # occ_mems = []
 
-        # We wish to iterate over the sequence dimension across all batches
-        for index in range(self.S):
-            if self.S > 2:
-                print(f'Handling iter {index}')
+        # feats_1_halfmem = None
+        # occ_1_mem = None
 
-            feats_0_halfmem = feats_1_halfmem
-            occ_0_mem = occ_1_mem
+        # # We might be able to allow for a larger displacement based on pyramid effects,
+        # # but the math starts to get complex and this should be good enough
+        # distance_bounds = torch.Tensor([hyp.ZMAX - hyp.ZMIN,
+        #                                 hyp.XMAX - hyp.XMIN])
+        # spatial_feat_dims = torch.tensor([hyp.Z, hyp.X])
+        # # In meters
+        # voxel_dims = distance_bounds / spatial_feat_dims / (1./hyp.ego_num_scales)
+        # max_allowable_displacement = torch.min(voxel_dims * torch.Tensor([hyp.ego_max_disp_d, hyp.ego_max_disp_w]))
 
-            xyz_cam1 = self.xyz_cams[:, index]
+        # # We wish to iterate over the sequence dimension across all batches
+        # for index in range(self.S):
+        #     if self.S > 2:
+        #         print(f'Handling iter {index}')
 
-            if index != 0:
-                # Build the ground truth matrix so we can calculate error
-                origin_T_cam1 = self.origin_T_cams[:, index]
-                origin_T_cam0 = self.origin_T_cams[:, index-1]
-                cam0_T_cam1 = utils.basic.matmul2(utils.geom.safe_inverse(origin_T_cam0), origin_T_cam1)
-                cam1_T_cam0 = utils.geom.safe_inverse(cam0_T_cam1)
+        #     feats_0_halfmem = feats_1_halfmem
+        #     occ_0_mem = occ_1_mem
 
-                # Handle synthetic transformations if necessary
-                if feed['set_name'] == 'train' and torch.randn(1) < hyp.ego_synth_prob:
-                    synthcam_T_cam0 = utils.geom.get_random_rt(self.B,
-                                                               r_amount=hyp.ego_rot_max,
-                                                               t_amount=max_allowable_displacement)
-                    synthcam_T_cam1 = utils.basic.matmul2(synthcam_T_cam0, cam0_T_cam1)
-                    xyz_synthcam = utils.geom.apply_4x4(synthcam_T_cam1, xyz_cam1)
+        #     xyz_cam1 = self.xyz_cams[:, index]
 
-                    xyz_cam1 = xyz_synthcam
-                    cam1_T_cam0 = synthcam_T_cam0
-                    cam0_T_cam1 = utils.geom.safe_inverse(cam1_T_cam0)
-                    origin_T_cam1 = utils.basic.matmul2(origin_T_cam0, cam0_T_cam1)
+        #     if index != 0:
+        #         # Build the ground truth matrix so we can calculate error
+        #         origin_T_cam1 = self.origin_T_cams[:, index]
+        #         origin_T_cam0 = self.origin_T_cams[:, index-1]
+        #         cam0_T_cam1 = utils.basic.matmul2(utils.geom.safe_inverse(origin_T_cam0), origin_T_cam1)
+        #         cam1_T_cam0 = utils.geom.safe_inverse(cam0_T_cam1)
 
-            occ_1_mem = self.vox_util.voxelize_xyz(xyz_cam1, self.Z, self.Y, self.X)
-            # unp_1_mem = utils.vox.unproject_rgb_to_mem(self.rgb_cams[:, index], self.Z, self.Y, self.X, self.pix_T_cams[:, index])
+        #         # # Handle synthetic transformations if necessary
+        #         # if feed['set_name'] == 'train' and torch.randn(1) < hyp.ego_synth_prob:
+        #         #     synthcam_T_cam0 = utils.geom.get_random_rt(self.B,
+        #         #                                                r_amount=hyp.ego_rot_max,
+        #         #                                                t_amount=max_allowable_displacement)
+        #         #     synthcam_T_cam1 = utils.basic.matmul2(synthcam_T_cam0, cam0_T_cam1)
+        #         #     xyz_synthcam = utils.geom.apply_4x4(synthcam_T_cam1, xyz_cam1)
 
-            occ_mems.append(occ_1_mem.clone().cpu())
-            # unp_mems.append(unp_1_mem.clone().cpu())
-            feats_input = occ_1_mem.clone()
+        #         #     xyz_cam1 = xyz_synthcam
+        #         #     cam1_T_cam0 = synthcam_T_cam0
+        #         #     cam0_T_cam1 = utils.geom.safe_inverse(cam1_T_cam0)
+        #         #     origin_T_cam1 = utils.basic.matmul2(origin_T_cam0, cam0_T_cam1)
 
-            feat_loss, feats_1_halfmem = self.feat3dnet(feats_input, self.summ_writer)
-            total_loss += feat_loss
+        #     occ_1_mem = self.vox_util.voxelize_xyz(xyz_cam1, self.Z, self.Y, self.X)
+        #     # unp_1_mem = utils.vox.unproject_rgb_to_mem(self.rgb_cams[:, index], self.Z, self.Y, self.X, self.pix_T_cams[:, index])
 
-            if index == 0:
-                continue
+        #     occ_mems.append(occ_1_mem.clone().cpu())
+        #     # unp_mems.append(unp_1_mem.clone().cpu())
+        #     feats_input = occ_1_mem.clone()
 
-            # Estimated transformation is previous_T_current
-            transformation_loss, cam0_T_cam1_e, _ = self.egonet(
-                feats_0_halfmem,
-                feats_1_halfmem,
-                cam0_T_cam1,
-                self.vox_util,
-                self.summ_writer)
+        #     feat_loss, feats_1_halfmem = self.feat3dnet(feats_input, self.summ_writer)
+        #     total_loss += feat_loss
 
-            cam1_T_cam0_e = utils.geom.safe_inverse(cam0_T_cam1_e.cpu())
+        #     if index == 0:
+        #         continue
 
-            # Save the estimated transformation so that we can visualize it later
-            if len(results['poses']) == 0:
-                results['poses'].append(origin_T_cam0)
+        #     # Estimated transformation is previous_T_current
+        #     transformation_loss, cam0_T_cam1_e, _ = self.egonet(
+        #         feats_0_halfmem,
+        #         feats_1_halfmem,
+        #         cam0_T_cam1,
+        #         self.vox_util,
+        #         self.summ_writer)
+        #     total_loss += transformation_loss
 
-            combined = utils.basic.matmul2(results['poses'][-1], cam0_T_cam1_e)
-            results['poses'].append(combined)
+        #     cam1_T_cam0_e = utils.geom.safe_inverse(cam0_T_cam1_e.cpu())
 
-            total_loss += transformation_loss
+        #     # Save the estimated transformation so that we can visualize it later
+        #     if len(results['poses']) == 0:
+        #         results['poses'].append(origin_T_cam0)
 
-            # Transform the second frame's occupancy based on our estimated transformation
-            transformed_occs = self.vox_util.apply_4x4_to_vox(cam0_T_cam1_e.cuda(), occ_1_mem)
-            # Visualize this result and compare it to the actual first frame
-            self.summ_writer.summ_occs('3d_outputs/transformed_occ', (transformed_occs, occ_0_mem))
-            # Visualize the untrasformed frames so we can see if we're improving
-            self.summ_writer.summ_occs('3d_outputs/occs_original', (occ_1_mem, occ_0_mem))
+        #     combined = utils.basic.matmul2(results['poses'][-1], cam0_T_cam1_e)
+        #     results['poses'].append(combined)
 
-            if hyp.ego_map_mode is not None:
-                transformed_feats_0_halfmem = self.vox_util.apply_4x4_to_vox(cam1_T_cam0_e.cuda(), feats_0_halfmem)
-                self.summ_writer.summ_feats('3d_feats/feats_recurrent_transformed',
-                                            (transformed_feats_0_halfmem, feats_1_halfmem),
-                                            pca=True)
-                if hyp.ego_map_mode == 'simple mean':
-                    feats_1_halfmem = transformed_feats_0_halfmem
-                elif hyp.ego_map_mode == 'masked mean':
-                    # B x D x W
-                    # We're assuming that a section of the image is 0 if all columns and channels in it are 0.
-                    # Could break under certain circumstances, but saves a lot of memory and seems reasonable in general.
-                    reduced_transformed_feats_0_halfmem = torch.sum(transformed_feats_0_halfmem, axis=(1, 3))
-                    # Something x 3
-                    zero_indices = torch.nonzero(reduced_transformed_feats_0_halfmem  == 0)
 
-                    meaned_feats_halfmem = torch.mean(torch.stack((feats_1_halfmem, transformed_feats_0_halfmem)), dim=0).cuda()
-                    rewritten_feats_halfmem = meaned_feats_halfmem
-                    values_to_copy = feats_1_halfmem[zero_indices[:, 0], :, zero_indices[:, 1], :, zero_indices[:, 2]]
-                    rewritten_feats_halfmem[zero_indices[:, 0], :, zero_indices[:, 1], :, zero_indices[:, 2]] = values_to_copy
-                    feats_1_halfmem = rewritten_feats_halfmem
-                else:
-                    raise ValueError('Invalid map type: ego_map_mode must be one of "simple mean" or "masked mean"')
-                self.summ_writer.summ_feat('3d_feats/combined_feats',
-                                            feats_1_halfmem,
-                                            pca=True)
+        #     # Transform the second frame's occupancy based on our estimated transformation
+        #     transformed_occs = self.vox_util.apply_4x4_to_vox(cam0_T_cam1_e.cuda(), occ_1_mem)
+        #     # Visualize this result and compare it to the actual first frame
+        #     self.summ_writer.summ_occs('3d_outputs/transformed_occ', (transformed_occs, occ_0_mem))
+        #     # Visualize the untrasformed frames so we can see if we're improving
+        #     self.summ_writer.summ_occs('3d_outputs/occs_original', (occ_1_mem, occ_0_mem))
 
-        # self.summ_writer.summ_feats('3d_feats/feats_input', torch.unbind(feats_input, dim=0), pca=False)
-        self.summ_writer.summ_scalar('transformation_loss/mse', transformation_loss)
+        # # self.summ_writer.summ_feats('3d_feats/feats_input', torch.unbind(feats_input, dim=0), pca=False)
+        # self.summ_writer.summ_scalar('transformation_loss/mse', transformation_loss)
 
-        # visualize what we got
-        # if self.include_image_summs:
-        self.summ_writer.summ_occs('3d_inputs/occ_mems', [occ.cuda() for occ in occ_mems])#, use_cuda=False)
-        # self.summ_writer.summ_unps('3d_inputs/unp_mems', unp_mems, occ_mems)
-        # rgb_cams_cpu = [rgb_cam.cpu() for rgb_cam in self.rgb_cams]
-        # self.summ_writer.summ_rgbs('2D_inputs/rgb_cams', rgb_cams_cpu)
+        # # visualize what we got
+        # # if self.include_image_summs:
+        # self.summ_writer.summ_occs('3d_inputs/occ_mems', [occ.cuda() for occ in occ_mems])#, use_cuda=False)
+        # # self.summ_writer.summ_unps('3d_inputs/unp_mems', unp_mems, occ_mems)
+        # # rgb_cams_cpu = [rgb_cam.cpu() for rgb_cam in self.rgb_cams]
+        # # self.summ_writer.summ_rgbs('2D_inputs/rgb_cams', rgb_cams_cpu)
 
         self.summ_writer.summ_scalar('loss', total_loss.cpu().item())
         return total_loss, results, False
@@ -324,7 +323,7 @@ class CarlaEgoModel(nn.Module):
             return total_loss, None, True
         else:
             if self.set_name=='train':
-                return self.run_localizer(feed)
+                return self.run_train(feed)
             # elif self.set_name=='test':
             #     return self.run_test(feed)
             else:

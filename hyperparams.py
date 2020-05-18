@@ -160,14 +160,15 @@ ego_t_l2_coeff = 0.0
 ego_deg_l2_coeff = 0.0
 
 ego_num_rots = 0
-ego_rot_max = 0.0
 ego_num_scales = 1
 ego_max_disp_h = 0
 ego_max_disp_w = 0
 ego_max_disp_d = 0
 
+ego_rot_max = 0.0
+
 ego_synth_prob = 0.0
-ego_map_mode = None
+ego_synth_t_max = 0.0
 
 #----------- mod -----------#
 
@@ -343,13 +344,11 @@ if do_ego:
         ego_rtd_coeff,
         ego_rta_coeff,
         ego_traj_coeff,
-        ego_warp_coeff,
     ]
     ego_prefixes = [
         "rtd",
         "rta",
         "t",
-        "w",
     ]
     for l_, l in enumerate(ego_coeffs):
         if l > 0:

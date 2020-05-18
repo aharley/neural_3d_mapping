@@ -10,6 +10,16 @@ mod = '"eg01"' # deleted junk
 mod = '"eg02"' # added hyps
 mod = '"eg03"' # train a while
 mod = '"eg04"' # 1 scale
+mod = '"eg05"' # no synth
+mod = '"eg06"' # consec=True
+mod = '"eg07"' # comment out the synth part < ok. but this npz has no motion
+mod = '"eg08"' # second file < a bit jumpier than i would like...
+mod = '"eg09"' # S = 3
+mod = '"eg10"' # make my own thing; assert S==2 < ok, much cleaner, but still jumpy
+mod = '"eg11"' # cleaned up summs
+mod = '"eg12"' # cleaned up summs; include the occ transform 
+mod = '"eg13"' # removed the warp loss
+mod = '"eg14"' # add summ of the gt
 
 ############## exps ##############
 
@@ -27,14 +37,15 @@ exps['builder'] = [
 ]
 exps['trainer'] = [
     'carla_ego', # mode
-    'carla_traj_10_data', # dataset
+    'carla_traj_1_data', # dataset
     'carla_bounds', 
     '10k_iters',
     'lr4',
     'B1',
     'train_feat3d',
     'train_ego',
-    'log50',
+    'no_shuf',
+    'log10',
 ]
 
 ############## groups ##############
@@ -44,7 +55,6 @@ groups['carla_ego'] = ['do_carla_ego = True']
 groups['train_feat3d'] = [
     'do_feat3d = True',
     'feat3d_dim = 32',
-    'feat3d_smooth_coeff = 0.01',
 ]
 groups['train_ego'] = [
     'do_ego = True',
@@ -52,11 +62,11 @@ groups['train_ego'] = [
     'ego_deg_l2_coeff = 1.0',
     'ego_num_rots = 11',
     'ego_rot_max = 4.0',
-    'ego_num_scales = 1',
+    'ego_num_scales = 2',
     'ego_max_disp_h = 1',
     'ego_max_disp_w = 2',
     'ego_max_disp_d = 2',
-    'ego_synth_prob = 0.5',
+    'ego_synth_prob = 0.0',
 ]
 
 ############## datasets ##############
@@ -77,13 +87,24 @@ PW = int(W/2.0)
 
 dataset_location = "/projects/katefgroup/datasets/carla/processed/npzs"
 
+groups['carla_traj_1_data'] = [
+    'dataset_name = "carla"',
+    'H = %d' % H,
+    'W = %d' % W,
+    'trainset = "taqs100i2one"',
+    'trainset_format = "traj"', 
+    'trainset_consec = True', 
+    'trainset_seqlen = %d' % S, 
+    'dataset_location = "%s"' % dataset_location,
+    'dataset_filetype = "npz"'
+]
 groups['carla_traj_10_data'] = [
     'dataset_name = "carla"',
     'H = %d' % H,
     'W = %d' % W,
     'trainset = "taqs100i2ten"',
     'trainset_format = "traj"', 
-    'trainset_consec = False', 
+    'trainset_consec = True', 
     'trainset_seqlen = %d' % S, 
     'dataset_location = "%s"' % dataset_location,
     'dataset_filetype = "npz"'

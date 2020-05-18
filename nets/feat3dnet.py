@@ -15,6 +15,7 @@ class Feat3dNet(nn.Module):
     def __init__(self, in_dim=1):
         super(Feat3dNet, self).__init__()
 
+        print('Feat3dNet...')
         self.net = archs.encoder3d.Skipnet3d(in_dim=in_dim, out_dim=hyp.feat3d_dim).cuda()
         # self.net = archs.encoder3d.Resnet3d(in_dim=in_dim, out_dim=hyp.feat3d_dim).cuda()
         

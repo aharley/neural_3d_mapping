@@ -390,7 +390,6 @@ def gradient3d(x, absolute=False, square=False):
     dy = x[:, :, :, 1:, :] - x[:, :, :, :-1, :]
     dx = x[:, :, :, :, 1:] - x[:, :, :, :, :-1]
 
-    # zeros = tf.zeros_like(x)
     zeros = torch.zeros_like(x)
     zero_z = zeros[:, :, 0:1, :, :]
     zero_y = zeros[:, :, :, 0:1, :]

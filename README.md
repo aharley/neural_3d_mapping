@@ -13,7 +13,7 @@ I am working here on building a clean copy of our ICLR paper's code and results.
 - [x] emb2d
 - [x] delete unused nets
 - [x] delete unused modes from main and hyps
-- [ ] ego
+- [x] ego
 - [ ] det
 - [ ] flow
 - [ ] clear readme

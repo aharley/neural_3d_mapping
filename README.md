@@ -13,9 +13,9 @@ I am working here on building a clean copy of our ICLR paper's code and results.
 - [x] delete unused nets
 - [x] delete unused modes from main and hyps
 - [x] ego
+- [x] instructional readme
 - [ ] det
 - [ ] flow
-- [ ] clear readme
 - [ ] nice gif in readme
 - [ ] data on google drive
 - [ ] some weights

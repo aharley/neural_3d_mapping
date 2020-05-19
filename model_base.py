@@ -21,13 +21,6 @@ class Model(object):
         self.all_inputs = inputs.get_inputs()
         print("------ Done getting inputs ------")
         self.device = torch.device("cuda")
-        # if hyp.do_debug:
-        #     self.pool_size = 11
-        # else:
-        #     self.pool_size = 1200
-        # if hyp.do_hard_vis:
-        #     self.pool3d_e = Pool_O(self.pool_size)
-        #     self.pool3d_g = Pool_O(self.pool_size)
         
     def initialize_model(self):
         pass
@@ -39,9 +32,6 @@ class Model(object):
         
         if hyp.lr > 0:
             params_to_optimize = self.model.parameters()
-            # for k in self.model.state_dict().keys():
-            #     print('key', k)
-            # input()
             self.optimizer = torch.optim.Adam(params_to_optimize, lr=hyp.lr)
         else:
             self.optimizer = None
@@ -82,10 +72,6 @@ class Model(object):
                 set_dicts.append({})
                 set_loaders.append(iter(set_inputs[-1]))
 
-        if hyp.do_export_inds:
-            ind_list = []
-            test_count = 0
-
         for step in list(range(self.start_iter+1, hyp.max_iters+1)):
             # reset set_loader after each epoch
             for i, (set_input) in enumerate(set_inputs):
@@ -123,8 +109,6 @@ class Model(object):
                 if log_this or set_do_backprop or hyp.do_test:
                     # print('%s: set_num %d; set_data_format %s; set_seqlen %s; log_this %d; set_do_backprop %d; ' % (
                     #     set_name, set_num, set_data_format, set_seqlen, log_this, set_do_backprop))
-                    # print('log_this = %s' % log_this)
-                    # print('set_do_backprop = %s' % set_do_backprop)
                           
                     read_start_time = time.time()
                     feed, data_ind = next(set_loader)
@@ -155,12 +139,6 @@ class Model(object):
                         with torch.no_grad():
                             loss, results, returned_early = self.model(feed_cuda)
                     loss_py = loss.cpu().item()
-
-                    if hyp.do_test and hyp.do_export_inds and (not returned_early):
-                        ind = results['ind_memR0']
-                        ind = ind.detach().cpu().numpy()[0]
-                        ind_list.append(ind)
-                        test_count += 1
 
                     if (not returned_early) and (set_do_backprop) and (hyp.lr > 0):
                         self.optimizer.zero_grad()
@@ -199,15 +177,6 @@ class Model(object):
 
         for writer in set_writers: #close writers to flush cache into file
             writer.close()
-
-        if hyp.do_export_inds:
-            print('got %d inds' % test_count)
-            out_fn = 'inds/%s_ind_list.npy' % (hyp.name)
-            np.save(out_fn, {
-                'ind_list': ind_list
-                # 'all_confs': all_confs,
-            })
-            print('saved %s' % out_fn)
 
     def set_requires_grad(self, nets, requires_grad=False):
         if not isinstance(nets, list):

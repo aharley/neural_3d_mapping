@@ -3,6 +3,7 @@ from exp_base import *
 ############## choose an experiment ##############
 
 current = 'builder'
+current = 'debugger'
 current = 'trainer'
 
 mod = '"eg00"' # nothing; builder
@@ -25,7 +26,7 @@ mod = '"eg16"' # renamed DHW as ZYX
 mod = '"eg17"' # same, fewer prints
 mod = '"eg18"' # feed rgbd input
 mod = '"eg19"' # cleaned up
-mod = '"eg20"' # 
+mod = '"eg20"' # train a while
 
 ############## exps ##############
 
@@ -41,17 +42,28 @@ exps['builder'] = [
     'train_ego',
     'log1',
 ]
-exps['trainer'] = [
+exps['debugger'] = [
     'carla_ego', # mode
     'carla_traj_1_data', # dataset
     'carla_bounds', 
-    '10k_iters',
+    '1k_iters',
     'lr4',
     'B1',
     'train_feat3d',
     'train_ego',
     'no_shuf',
     'log10',
+]
+exps['trainer'] = [
+    'carla_ego', # mode
+    'carla_traj_train_data', # dataset
+    'carla_bounds', 
+    '100k_iters',
+    'lr4',
+    'B2',
+    'train_feat3d',
+    'train_ego',
+    'log50',
 ]
 
 ############## groups ##############
@@ -115,36 +127,14 @@ groups['carla_traj_10_data'] = [
     'dataset_location = "%s"' % dataset_location,
     'dataset_filetype = "npz"'
 ]
-groups['carla_multiview_train_data'] = [
+groups['carla_traj_train_data'] = [
     'dataset_name = "carla"',
     'H = %d' % H,
     'W = %d' % W,
-    'trainset = "mags7i3t"',
-    'trainset_format = "multiview"', 
+    'trainset = "taqs100i2t"',
+    'trainset_format = "traj"', 
+    'trainset_consec = True', 
     'trainset_seqlen = %d' % S, 
-    'dataset_location = "%s"' % dataset_location,
-    'dataset_filetype = "npz"'
-]
-groups['carla_multiview_test_data'] = [
-    'dataset_name = "carla"',
-    'H = %d' % H,
-    'W = %d' % W,
-    'testset = "mags7i3v"',
-    'testset_format = "multiview"', 
-    'testset_seqlen = %d' % S, 
-    'dataset_location = "%s"' % dataset_location,
-    'dataset_filetype = "npz"'
-]
-groups['carla_multiview_train_val_data'] = [
-    'dataset_name = "carla"',
-    'H = %d' % H,
-    'W = %d' % W,
-    'trainset = "mags7i3t"',
-    'trainset_format = "multiview"', 
-    'trainset_seqlen = %d' % S, 
-    'valset = "mags7i3v"',
-    'valset_format = "multiview"', 
-    'valset_seqlen = %d' % S, 
     'dataset_location = "%s"' % dataset_location,
     'dataset_filetype = "npz"'
 ]

@@ -43,40 +43,38 @@ def eval_against_gt(loss, cam0_T_cam1_e, cam0_T_cam1_g,
     return loss
 
 def cost_volume_3D(vox0, vox1,
-                   max_disp_h=1,
-                   max_disp_w=4,
-                   max_disp_d=4):
+                   max_disp_z=4,
+                   max_disp_y=1,
+                   max_disp_x=4):
     # max_disp = max_displacement
-    # vox0 is B x C x D x H x W 
-    # vox1 is B x C x D x H x W 
-    # return cost_vol, shaped B x H x W x D x E
+    # vox0 is B x C x Z x Y x X 
+    # vox1 is B x C x Z x Y x X 
+    # return cost_vol, shaped B x E x Z x Y x X
     # E_i = max_disp_i*2 + 1
     # E = \prod E_i
 
     # pad the top, bottom, left, and right of vox1
     ones = torch.ones_like(vox1)
     vox1_pad = F.pad(vox1,
-                      [max_disp_w, max_disp_w,
-                       max_disp_h, max_disp_h,
-                       max_disp_d, max_disp_d,
-                       0, 0,
-                       0, 0]
-    )
+                     (max_disp_z, max_disp_z,
+                      max_disp_y, max_disp_y,
+                      max_disp_x, max_disp_x),
+                     'constant', 0)
+    
     ones_pad = F.pad(ones,
-                      [max_disp_w, max_disp_w,
-                       max_disp_h, max_disp_h,
-                       max_disp_d, max_disp_d,
-                       0, 0,
-                       0, 0]
-    )
+                     (max_disp_z, max_disp_z,
+                      max_disp_y, max_disp_y,
+                      max_disp_x, max_disp_x),
+                     'constant', 0)
+
     _, _, d, h, w = vox0.shape
-    loop_range1 = max_disp_h * 2 + 1
-    loop_range2 = max_disp_w * 2 + 1
-    loop_range3 = max_disp_d * 2 + 1
+    loop_range1 = max_disp_z * 2 + 1
+    loop_range2 = max_disp_y * 2 + 1
+    loop_range3 = max_disp_x * 2 + 1
     cost_vol = []
-    for y in range(0, loop_range1):
-        for x in range(0, loop_range2):
-            for z in range(0, loop_range3):
+    for z in range(0, loop_range1):
+        for y in range(0, loop_range2):
+            for x in range(0, loop_range3):
                 vox1_slice = vox1_pad[:, :, z:z+d, y:y+h, x:x+w]
                 ones_slice = ones_pad[:, :, z:z+d, y:y+h, x:x+w]
                 cost = utils.basic.reduce_masked_mean(vox0*vox1_slice, ones_slice, dim=1, keepdim=True)
@@ -85,8 +83,13 @@ def cost_volume_3D(vox0, vox1,
     return cost_vol
 
 class EgoNet(nn.Module):
-    def __init__(self, R, rot_max, num_scales,
-                 max_disp_h, max_disp_w, max_disp_d):
+    def __init__(self,
+                 num_scales=1,
+                 num_rots=3,
+                 max_deg=4,
+                 max_disp_z=1,
+                 max_disp_y=1,
+                 max_disp_x=1):
         print('EgoNet...')
         super(EgoNet, self).__init__()
         if num_scales:
@@ -95,15 +98,15 @@ class EgoNet(nn.Module):
             self.scales = [0.5, 1]
         else:
             assert(False) # only 1-2 scales supported right now
-        self.R = R # num rots
-        self.rot_max = rot_max # max degrees rotation, on either side of zero
-        self.max_disp_h = max_disp_h
-        self.max_disp_w = max_disp_w
-        self.max_disp_d = max_disp_d
+        self.R = num_rots
+        self.max_deg = max_deg # max degrees rotation, on either side of zero
+        self.max_disp_z = max_disp_z
+        self.max_disp_y = max_disp_y
+        self.max_disp_x = max_disp_x
         
-        self.E1 = self.max_disp_d*2 + 1
-        self.E2 = self.max_disp_h*2 + 1
-        self.E3 = self.max_disp_w*2 + 1
+        self.E1 = self.max_disp_z*2 + 1
+        self.E2 = self.max_disp_y*2 + 1
+        self.E3 = self.max_disp_x*2 + 1
         self.E = self.E1*self.E2*self.E3
 
         self.first_layer = nn.Linear(self.R*self.E, 128).cuda()
@@ -130,7 +133,7 @@ class EgoNet(nn.Module):
 
         alignments = []
 
-        B, C, D, H, W = list(feat0.size())
+        B, C, Z, Y, X = list(feat0.size())
         utils.basic.assert_same_shape(feat0, feat1)
 
         summ_writer.summ_feat('ego/feat0', feat0, pca=True)
@@ -142,16 +145,16 @@ class EgoNet(nn.Module):
 
         feat1_backup = feat1.clone()
 
-        rots = torch.linspace(-self.rot_max, self.rot_max, self.R)
+        rots = torch.linspace(-self.max_deg, self.max_deg, self.R)
         rots = torch.reshape(rots, [self.R])
 
         rot_cam_total = torch.zeros([B])
         delta_cam_total = torch.zeros([B, 3])
 
         for sc in self.scales:
-            H_ = int(H*sc)
-            W_ = int(W*sc)
-            D_ = int(D*sc)
+            Z_ = int(Z*sc)
+            Y_ = int(Y*sc)
+            X_ = int(X*sc)
 
             if not sc==1.0:
                 feat0_ = F.interpolate(feat0, scale_factor=sc, mode='trilinear')
@@ -161,12 +164,12 @@ class EgoNet(nn.Module):
                 feat1_ = feat1.clone()
 
             # have a heatmap at least sized 3, so that an argmax is capable of returning 0
-            valid_H = H_-self.max_disp_h*2
-            valid_W = W_-self.max_disp_w*2
-            valid_D = D_-self.max_disp_d*2
-            assert(valid_H >= 3)
-            assert(valid_W >= 3)
-            assert(valid_D >= 3)
+            valid_Z = Z_-self.max_disp_z*2
+            valid_Y = Y_-self.max_disp_y*2
+            valid_X = X_-self.max_disp_x*2
+            assert(valid_Z >= 3)
+            assert(valid_Y >= 3)
+            assert(valid_X >= 3)
 
             summ_writer.summ_feat('ego/feat0_resized_%.3f' % sc, feat0_, pca=True)
             summ_writer.summ_feat('ego/feat1_resized_%.3f' % sc, feat1_, pca=True)
@@ -184,21 +187,21 @@ class EgoNet(nn.Module):
             # we first need the feats to lead with B*R
             feat0_ = torch.unsqueeze(feat0_, axis=1).repeat([1, self.R, 1, 1, 1, 1])
             feat1_ = torch.unsqueeze(feat1_, axis=1).repeat([1, self.R, 1, 1, 1, 1])
-            feat0_ = feat0_.reshape([B*self.R, C, D_, H_, W_])
-            feat1_ = feat1_.reshape([B*self.R, C, D_, H_, W_])
+            feat0_ = feat0_.reshape([B*self.R, C, Z_, Y_, X_])
+            feat1_ = feat1_.reshape([B*self.R, C, Z_, Y_, X_])
 
             featN_ = vox_util.apply_4x4_to_vox(camN_T_cam1, feat1_)
 
-            featN__ = featN_.reshape([B, self.R, C, D_, H_, W_])
+            featN__ = featN_.reshape([B, self.R, C, Z_, Y_, X_])
             summ_writer.summ_feats('ego/featN_%.3f_postwarp' % sc, torch.unbind(featN__, axis=1), pca=False)
 
             cc = cost_volume_3D(feat0_,
                                 featN_,
-                                max_disp_h=self.max_disp_h,
-                                max_disp_w=self.max_disp_w,
-                                max_disp_d=self.max_disp_d)
+                                max_disp_z=self.max_disp_z,
+                                max_disp_y=self.max_disp_y,
+                                max_disp_x=self.max_disp_x)
 
-            # cc is B*R x H_ x W_ x D_ x E,
+            # cc is B*R x Z_ x Y_ x X_ x E,
             # i.e., each spatial location has a heatmap squished into the E dim
 
             # reduce along the spatial dims
@@ -223,9 +226,9 @@ class EgoNet(nn.Module):
             # convert the mem argmax into a translation in cam coords
             xyz_argmax_mem = torch.unsqueeze(torch.stack([x, y, z], axis=1), axis=1)
             xyz_zero_mem = torch.zeros([B, 1, 3])
-            # in the transformation, use H*sc instead of H_, in case we cropped instead of scaled
-            xyz_argmax_cam = vox_util.Mem2Ref(xyz_argmax_mem.cuda(), int(D*sc), int(H*sc), int(W*sc))
-            xyz_zero_cam = vox_util.Mem2Ref(xyz_zero_mem.cuda(), int(D*sc), int(H*sc), int(W*sc))
+            # in the transformation, use Y*sc instead of Y_, in case we cropped instead of scaled
+            xyz_argmax_cam = vox_util.Mem2Ref(xyz_argmax_mem.cuda(), int(Z*sc), int(Y*sc), int(X*sc))
+            xyz_zero_cam = vox_util.Mem2Ref(xyz_zero_mem.cuda(), int(Z*sc), int(Y*sc), int(X*sc))
             xyz_delta_cam = xyz_argmax_cam-xyz_zero_cam
 
             # mem is aligned with cam, and scaling does not affect rotation

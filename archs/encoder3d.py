@@ -23,7 +23,9 @@ class Skipnet3d(nn.Module):
 
         for i, (in_chan, out_chan, ksize, stride) in enumerate(zip(self.down_in_dims, self.down_out_dims, self.down_ksizes, self.down_strides)):
             conv3d.append(nn.Sequential(
-                nn.Conv3d(in_channels=in_chan, out_channels=out_chan, kernel_size=ksize, stride=stride, padding=padding),
+                nn.ReplicationPad3d(padding),
+                nn.Conv3d(in_channels=in_chan, out_channels=out_chan, kernel_size=ksize, stride=stride, padding=0),
+                # nn.Conv3d(in_channels=in_chan, out_channels=out_chan, kernel_size=ksize, stride=stride, padding=padding),
                 nn.LeakyReLU(),
                 nn.BatchNorm3d(num_features=out_chan),
             ))

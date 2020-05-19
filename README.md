@@ -15,6 +15,7 @@ I am working here on building a clean copy of our ICLR paper's code and results.
 - [x] ego
 - [x] instructional readme
 - [x] sample data on google drive
+- [ ] synth training for ego
 - [ ] det
 - [ ] flow
 - [ ] nice gif in readme

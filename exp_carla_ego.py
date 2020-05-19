@@ -20,6 +20,12 @@ mod = '"eg11"' # cleaned up summs
 mod = '"eg12"' # cleaned up summs; include the occ transform 
 mod = '"eg13"' # removed the warp loss
 mod = '"eg14"' # add summ of the gt
+mod = '"eg15"' # fix the hyps
+mod = '"eg16"' # renamed DHW as ZYX
+mod = '"eg17"' # same, fewer prints
+mod = '"eg18"' # feed rgbd input
+mod = '"eg19"' # cleaned up
+mod = '"eg20"' # 
 
 ############## exps ##############
 
@@ -60,12 +66,12 @@ groups['train_ego'] = [
     'do_ego = True',
     'ego_t_l2_coeff = 1.0',
     'ego_deg_l2_coeff = 1.0',
-    'ego_num_rots = 11',
-    'ego_rot_max = 4.0',
     'ego_num_scales = 2',
-    'ego_max_disp_h = 1',
-    'ego_max_disp_w = 2',
-    'ego_max_disp_d = 2',
+    'ego_num_rots = 11',
+    'ego_max_deg = 4.0',
+    'ego_max_disp_z = 2',
+    'ego_max_disp_y = 1',
+    'ego_max_disp_x = 2',
     'ego_synth_prob = 0.0',
 ]
 

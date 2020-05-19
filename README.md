@@ -14,10 +14,11 @@ I am working here on building a clean copy of our ICLR paper's code and results.
 - [x] delete unused modes from main and hyps
 - [x] ego
 - [x] instructional readme
+- [x] sample data on google drive
 - [ ] det
 - [ ] flow
 - [ ] nice gif in readme
-- [ ] data on google drive
+- [ ] full data on google drive
 - [ ] some weights
 
 Proper readme starts below here...
@@ -52,8 +53,55 @@ Then, the following should happen:
 - `main.py` will create a logging directory
 - `model_carla_ego.py` will call `backend/inputs.py` to load some data, then process it, then call the appropriate `nets/`, collect loss, and apply gradients.
 
+If things go well, the code will just tell you that you are missing a dataset.
 
-## Tensor shapes
+## Data
+
+Download `sample_dataset.tar.gz` (2.0 G) from this [google drive link](https://drive.google.com/file/d/1UfDy99bor-XO7dfpkd67GcM_QoGzJMfR/view?usp=sharing).
+
+Un-tar it: `tar -xvf sample_dataset.tar.gz`. You should get a `datasets` folder; you may move this somewhere else, if you like. 
+
+Navigate into your `datasets` folder and run `gen_traj_trainval.sh` to generate `.txt` files. Here is my output:
+```
+aharley@matrix:~/neural_3d_mapping/datasets$ ./gen_traj_trainval.sh
+searching for traj_aq_s100_i2
+/home/aharley/neural_3d_mapping/datasets/traj_aq_s100_i2
+45 taqs100i2a.txt
+25 taqs100i2t.txt
+20 taqs100i2v.txt
+25 taqs100i2hun.txt
+10 taqs100i2ten.txt
+1 taqs100i2one.txt
+```
+
+The suffixes here mean the following:
+- `t`: training
+- `v`: validation
+- `a`: all (training + validation)
+- `hun`: 100 training samples
+- `ten`: 10 training samples
+- `one`: 1 training sample (for debugging)
+
+The rest of the name (`taqs100i2`) is a code for the data type/version/contents; you can safely ignore this, or even change it.
+
+Edit your exp file to indicate the location of the data: `dataset_location = "~/datasets"`
+
+This should be the folder that contains the `.sh` file, `.txt` files and the folder of npzs.
+
+Now, you should be able to retry the bash runner (`carla_ego_go.sh`) and see some results.
+
+## Code
+
+The code has these main parts:
+- `model_*.py`: These files do most of the interesting work: they prepare the input tensors, call the networks, accumulate loss, and take gradient steps.
+- `exp_*.py`: These files specify experiments settings, like what networks to run and what coefficients to use on the losses. There are more instructions on this below.
+- `nets/`: These are all of the neural networks. The backbone for most 3D tasks is `feat3dnet`. 
+- `archs/`: These are various 2D and 3D CNN architectures. 
+- `utils/`: These files handle all the operations for which torch does not have native equivalents. Of particular interest here is `utils/geom.py` and `utils/vox.py`, for the geometry and voxel-related functions. 
+- `backend/`: These files handle boring tasks like saving/loading checkpoints, and reading/batching data from the disk.
+
+
+### Tensor shapes
 
 We maintain consistent axis ordering across all tensors. In general, the ordering is `B x S x C x Z x Y x X`, where
 
@@ -66,39 +114,30 @@ We maintain consistent axis ordering across all tensors. In general, the orderin
 
 This ordering stands even if a tensor is missing some dims. For example, plain images are `B x C x Y x X` (as is the pytorch standard).
 
-## Coordinate systems
-
 ### Axis directions
 
 - Z: forward
 - Y: down
 - X: right
 
-### Naming conventions
+### Geometry conventions
 
- - `p_a` is a point named `p` living in `a` coordinates.
- - `a_T_b` is a transformation that takes points from coordinate system `b` to coordinate system `a`.
+We write pointclouds/tensors and transformations as follows:
+
+- `p_a` is a point named `p` living in `a` coordinates.
+- `a_T_b` is a transformation that takes points from coordinate system `b` to coordinate system `a`.
 
 For example, `p_a = a_T_b * p_b`.
 
 This convention lets us easily keep track of valid transformations, such as
 `point_a = a_T_b * b_T_c * c_T_d * point_d`.
 
+For example, an intrinsics matrix is `pix_T_cam`. An extrinsics matrix is `cam_T_world`. 
+
 In this project's context, we often need something like this:
-`xy_pix = pix_T_rect * rect_T_cam * cam_T_velo * xyz_velo`
+`xyz_cam0 = cam0_T_cam1 * cam1_T_velodyne * xyz_velodyne`
 
-Or, keeping track of homogeneous coordinates, we may write
-`xyz_rect = rect_T_cam * cam_T_velo * concat(xyz_velo, ones)`
-`xyz_pix = pix_T_rect * xyz_rect`
-`xy_pix = xyz_pix[:2]/xyz_pix[2]`.
-
-## Models: `model_*.py`
-
-These files do most of the interesting work: they prepare the input tensors, call the networks, accumulate loss, and take gradient steps.
-
-## Experiments: `exp_*.py`
-
-### Main idea
+### Experiments
 
 Experiment settings are defined hierarchically. Here is the hierarchy:
 
@@ -113,7 +152,7 @@ Experiment settings are defined hierarchically. Here is the hierarchy:
 
 Experiments and groups are defined in `exp_whatever.py`. The `whatever` depends on the mode. Hyperparameters (and their default settings) are defined in `hyperparams.py`.
 
-### Autonaming
+#### Autonaming
 
 The names of directories for checkpoints and logs are generated automatically, based on the current hyperparameters and the current mod. For example, an automatically generated name looks like this:
 
@@ -121,7 +160,7 @@ The names of directories for checkpoints and logs are generated automatically, b
 
 To see how the names are generated (and to learn the shorthand for decoding them), see the bottom half of `hyperparams.py`. This particular name indicates: batch size 2, sequence length 2, resolution `128x32x128`, learning rate 0.0001, `feat3dnet` with feature dim 32, egonet with 2 scales and 11 rotations and a `2x1x2` voxel search region across 4 degrees, with a coefficient of 1.0 on each of its losses, running on the dataset `taqs100i2t`, with mod `eg20` (which should be defined manually in the exp file). 
 
-### Designing and running experiments
+#### Designing and running experiments
 
 To run an experiment that has already been defined:
 

@@ -14,6 +14,9 @@ import utils.samp
 
 EPS = 1e-6
 
+# acknowledgement:
+# Niles Christensen and Sohil Samir Savla developed the pytorch port of the original egonet.py, written in tensorflow
+
 def eval_against_gt(loss, cam0_T_cam1_e, cam0_T_cam1_g,
                     t_coeff=0.0, deg_coeff=0.0, sc=1.0,
                     summ_writer=None):

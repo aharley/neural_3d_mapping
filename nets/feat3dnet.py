@@ -31,7 +31,7 @@ class Feat3dNet(nn.Module):
         dz, dy, dx = utils.basic.gradient3d(feat, absolute=True)
         smooth_vox = torch.mean(dx+dy+dz, dim=1, keepdims=True)
         smooth_loss = torch.mean(smooth_vox)
-        total_loss = utils.misc.add_loss('feat3d/smooth_loss', total_loss, smooth_loss, hyp.occ_smooth_coeff, summ_writer)
+        total_loss = utils.misc.add_loss('feat3d/smooth_loss', total_loss, smooth_loss, hyp.feat3d_smooth_coeff, summ_writer)
 
         feat = utils.basic.l2_normalize(feat, dim=1)
         

@@ -306,24 +306,27 @@ def collect_object_info(lrtlist_camRs, boxlist_camRs, tidlist_s, scorelist_s, K,
     # return obj_lrt_traj, obj_tid_traj, obj_score_traj
     return obj_lrt_traj, obj_box_traj, obj_score_traj
 
-def rescore_boxlist_with_inbound(camX_T_camR, boxlist_camR, tidlist, Z, Y, X, vox_util, only_cars=True, pad=2.0):
-    # boxlist_camR is B x N x 9
-    B, N, D = list(boxlist_camR.shape)
-    assert(D==9)
-    xyzlist = boxlist_camR[:,:,:3]
+def rescore_lrtlist_with_inbound(lrtlist_camR, tidlist, Z, Y, X, vox_util, pad=2.0):
+    # lrtlist_camR is B x N x 19
+    # assume R is the coord where we want to check inbound-ness
+    B, N, D = list(lrtlist_camR.shape)
+    assert(D==19)
+    xyzlist = utils.geom.get_clist_from_lrtlist(lrtlist_camR)
     # this is B x N x 3
-    lenlist = boxlist_camR[:,:,3:7]
-    # this is B x N x 3
-
-    xyzlist = utils.geom.apply_4x4(camX_T_camR, xyzlist)
+    # lenlist = boxlist_camR[:,:,3:7]
+    # # this is B x N x 3
+    
+    # print('tidlist[0]', tidlist[0].detach().cpu().numpy())
+    
+    # xyzlist = utils.geom.apply_4x4(camX_T_camR, xyzlist)
     
     validlist = 1.0-(torch.eq(tidlist, -1*torch.ones_like(tidlist))).float()
     # this is B x N
     
-    if only_cars:
-        biglist = (torch.norm(lenlist, dim=2) > 2.0).float()
-        validlist = validlist * biglist
-
+    # if only_cars:
+    #     biglist = (torch.norm(lenlist, dim=2) > 2.0).float()
+    #     validlist = validlist * biglist
+    
     xlist, ylist, zlist = torch.unbind(xyzlist, dim=2)
     inboundlist_0 = vox_util.get_inbounds(torch.stack([xlist+pad, ylist, zlist], dim=2), Z, Y, X, already_mem=False).float()
     inboundlist_1 = vox_util.get_inbounds(torch.stack([xlist-pad, ylist, zlist], dim=2), Z, Y, X, already_mem=False).float()
@@ -1146,7 +1149,7 @@ def parse_boxes(box_camRs, origin_T_camRs):
     rtlist = utils.geom.merge_rt(rlist_, tlist_).reshape(B, S, 4, 4)
     # this is B x S x 4 x 4
     lrt_camRs = utils.geom.merge_lrtlist(lenlist, rtlist)
-    return lrt_camRs, obj_lens
+    return lrt_camRs
 
 def parse_seg_into_mem(seg_camXs, num_seg_labels, occ_memX0s, pix_T_cams, camX0s_T_camXs, vox_util):
     B, S, H, W = list(seg_camXs.shape)

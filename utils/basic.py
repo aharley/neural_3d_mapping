@@ -6,6 +6,12 @@ import torch.nn.functional as F
 EPS = 1e-6
 import copy
 
+def float2str(x):
+    s = '%g' % x
+    if '.' in s:
+        s = s[s.index('.'):]
+    return s
+
 def assert_same_shape(t1, t2):
     for (x, y) in zip(list(t1.shape), list(t2.shape)):
         assert(x==y)

@@ -978,20 +978,18 @@ class Summ_writer(object):
 
             cv2.circle(rgb,(centers_pix[ind,0,0],centers_pix[ind,0,1]),1,color,-1)
 
-            if False:
-                # recently the scores are not informative
-                if scores[ind] < 1.0 and scores[ind] > 0.0:
-                    # print('for example, putting this one at', np.min(corners[:,0]), np.min(corners[:,1]))
-                    cv2.putText(rgb,
-                                '%.3f' % (scores[ind]), 
-                                # '%.2f match' % (scores[ind]), 
-                                # '%.2f IOU' % (scores[ind]), 
-                                # '%d (%.2f)' % (tids[ind], scores[ind]), 
-                                (np.min(corners[:,0]), np.min(corners[:,1])),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                1.0, # font scale (float)
-                                color,
-                                2) # font thickness (int)
+            # print('putting score text at', np.min(corners[:,0]), np.min(corners[:,1]))
+            cv2.putText(rgb,
+                        utils.basic.float2str(scores[ind]),
+                        # '%.3f' % (scores[ind]), 
+                        # '%.2f match' % (scores[ind]), 
+                        # '%.2f IOU' % (scores[ind]), 
+                        # '%d (%.2f)' % (tids[ind], scores[ind]), 
+                        (np.min(corners[:,0]), np.min(corners[:,1])),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1.0, # font scale (float)
+                        color,
+                        2) # font thickness (int)
 
             for c in corners:
 

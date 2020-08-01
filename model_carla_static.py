@@ -159,43 +159,19 @@ class CarlaStaticModel(nn.Module):
         self.vox_size_Y = self.vox_util.default_vox_size_Y
         self.vox_size_Z = self.vox_util.default_vox_size_Z
         
-        # _boxlist_camRs = feed['boxlists']
-        # _tidlist_s = feed['tidlists'] # coordinate-less and plural
-        # _scorelist_s = feed['scorelists'] # coordinate-less and plural
-        # _scorelist_s = __u(utils.misc.rescore_boxlist_with_inbound(
-        #     utils.geom.eye_4x4(self.B*self.S),
-        #     __p(_boxlist_camRs),
-        #     __p(_tidlist_s),
-        #     self.Z, self.Y, self.X,
-        #     self.vox_util,
-        #     only_cars=False, pad=2.0))
-        # boxlist_camRs_, tidlist_s_, scorelist_s_ = utils.misc.shuffle_valid_and_sink_invalid_boxes(
-        #     __p(_boxlist_camRs), __p(_tidlist_s), __p(_scorelist_s))
-        # self.boxlist_camRs = __u(boxlist_camRs_)
-        # self.tidlist_s = __u(tidlist_s_)
-        # self.scorelist_s = __u(scorelist_s_)
-
-        # for b in list(range(self.B)):
-        #     # if torch.sum(scorelist_s[b,0]) == 0:
-        #     if torch.sum(self.scorelist_s[:,0]) < (self.B/2): # not worth it; return early
-        #         return 0.0, None, True
-
-        # lrtlist_camRs_, obj_lens_ = utils.misc.parse_boxes(__p(feed['boxlists']), __p(self.origin_T_camRs))
         origin_T_camRs_ = self.origin_T_camRs.reshape(self.B, self.S, 1, 4, 4).repeat(1, 1, self.N, 1, 1).reshape(self.B*self.S, self.N, 4, 4)
         boxlists = feed['boxlists']
         self.scorelist_s = feed['scorelists']
         self.tidlist_s = feed['tidlists']
-        # print('boxlists', boxlists.shape)
         boxlists_ = boxlists.reshape(self.B*self.S, self.N, 9)
-        lrtlist_camRs_, _ = utils.misc.parse_boxes(boxlists_, origin_T_camRs_)
+        lrtlist_camRs_ = utils.misc.parse_boxes(boxlists_, origin_T_camRs_)
         self.lrtlist_camRs = lrtlist_camRs_.reshape(self.B, self.S, self.N, 19)
-        
-        # origin_T_camRs_ = self.origin_T_camRs.reshape(self.B, self.S, 1, 4, 4)
-        # self.lrtlist_camRs = utils.misc.parse_boxes(box_camRs, origin_T_camRs)
-        # self.lrtlist_camRs = __u(utils.geom.convert_boxlist_to_lrtlist(__p(self.boxlist_camRs)))
         self.lrtlist_camR0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camR0s_T_camRs), __p(self.lrtlist_camRs)))
         self.lrtlist_camXs = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camXs_T_camRs), __p(self.lrtlist_camRs)))
         self.lrtlist_camX0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camX0s_T_camXs), __p(self.lrtlist_camXs)))
+
+        self.scorelist_s = __u(utils.misc.rescore_lrtlist_with_inbound(
+            __p(self.lrtlist_camRs), self.tidlist_s), self.Z, self.Y, self.X, self.vox_util, pad=2.0)
 
         self.rgb_camXs = feed['rgb_camXs']
         visX_e = []

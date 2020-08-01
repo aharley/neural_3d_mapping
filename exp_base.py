@@ -2,10 +2,33 @@ import pretrained_nets_carla as pret_carla
 
 exps = {}
 groups = {}
+############## training settings ##############
+
+groups['train_feat3d'] = [
+    'do_feat3d = True',
+    'feat3d_dim = 32',
+    # 'feat3d_smooth_coeff = 0.01',
+]
 
 ############## dataset settings ##############
 
-groups['carla_bounds'] = [
+H = 128
+W = 384
+
+groups['seqlen1'] = [
+    'trainset_seqlen = 1',
+    'valset_seqlen = 1',
+]
+
+groups['8-4-8_bounds'] = [
+    'XMIN = -8.0', # right (neg is left)
+    'XMAX = 8.0', # right
+    'YMIN = -4.0', # down (neg is up)
+    'YMAX = 4.0', # down
+    'ZMIN = -8.0', # forward (neg is backward)
+    'ZMAX = 8.0', # forward 
+]
+groups['16-4-16_bounds'] = [
     'XMIN = -16.0', # right (neg is left)
     'XMAX = 16.0', # right
     'YMIN = -4.0', # down (neg is up)
@@ -13,6 +36,61 @@ groups['carla_bounds'] = [
     'ZMIN = -16.0', # forward (neg is backward)
     'ZMAX = 16.0', # forward 
 ]
+groups['16-8-16_bounds'] = [
+    'XMIN = -16.0', # right (neg is left)
+    'XMAX = 16.0', # right
+    'YMIN = -8.0', # down (neg is up)
+    'YMAX = 8.0', # down
+    'ZMIN = -16.0', # forward (neg is backward)
+    'ZMAX = 16.0', # forward 
+]
+
+dataset_location = "/projects/katefgroup/datasets/carla/processed/npzs"
+
+groups['carla_multiview_10_data'] = [
+    'dataset_name = "carla"',
+    'H = %d' % H,
+    'W = %d' % W,
+    'trainset = "mags7i3ten"',
+    'trainset_format = "multiview"', 
+    # 'trainset_seqlen = %d' % S, 
+    'dataset_location = "%s"' % dataset_location,
+    'dataset_filetype = "npz"'
+]
+groups['carla_multiview_train_data'] = [
+    'dataset_name = "carla"',
+    'H = %d' % H,
+    'W = %d' % W,
+    'trainset = "mags7i3t"',
+    'trainset_format = "multiview"', 
+    # 'trainset_seqlen = %d' % S, 
+    'dataset_location = "%s"' % dataset_location,
+    'dataset_filetype = "npz"'
+]
+groups['carla_multiview_test_data'] = [
+    'dataset_name = "carla"',
+    'H = %d' % H,
+    'W = %d' % W,
+    'testset = "mags7i3v"',
+    'testset_format = "multiview"', 
+    # 'testset_seqlen = %d' % S, 
+    'dataset_location = "%s"' % dataset_location,
+    'dataset_filetype = "npz"'
+]
+groups['carla_multiview_train_val_data'] = [
+    'dataset_name = "carla"',
+    'H = %d' % H,
+    'W = %d' % W,
+    'trainset = "mags7i3t"',
+    'trainset_format = "multiview"', 
+    # 'trainset_seqlen = %d' % S, 
+    'valset = "mags7i3v"',
+    'valset_format = "multiview"', 
+    # 'valset_seqlen = %d' % S, 
+    'dataset_location = "%s"' % dataset_location,
+    'dataset_filetype = "npz"'
+]
+
 
 ############## other settings ##############
 

@@ -57,6 +57,7 @@ mod = '"sta46"' # init slow in model base after saverloader
 mod = '"sta47"' # zero padding; log500
 mod = '"sta48"' # replication padding; log500
 mod = '"sta49"' # repeat after deleting some code
+mod = '"sta50"' # pret 02_s2_m128x32x128_1e-3_F3_d32_s.01_O_c2_s.1_E3_n2_c.1_mags7i3t_sta48
 
 ############## exps ##############
 
@@ -102,11 +103,6 @@ groups['train_feat2d'] = [
     'feat2d_dim = 32',
     # 'feat2d_smooth_coeff = 0.1',
 ]
-groups['train_feat3d'] = [
-    'do_feat3d = True',
-    'feat3d_dim = 32',
-    'feat3d_smooth_coeff = 0.01',
-]
 groups['train_occ'] = [
     'do_occ = True',
     'occ_coeff = 2.0',
@@ -143,7 +139,6 @@ Z = int(SIZE*4)
 Y = int(SIZE*1)
 X = int(SIZE*4)
 K = 2 # how many objects to consider
-N = 8 # how many objects per npz
 S = 2
 H = 128
 W = 384
@@ -151,51 +146,6 @@ W = 384
 PH = int(H/2.0)
 PW = int(W/2.0)
 
-dataset_location = "/projects/katefgroup/datasets/carla/processed/npzs"
-
-groups['carla_multiview_10_data'] = [
-    'dataset_name = "carla"',
-    'H = %d' % H,
-    'W = %d' % W,
-    'trainset = "mags7i3ten"',
-    'trainset_format = "multiview"', 
-    'trainset_seqlen = %d' % S, 
-    'dataset_location = "%s"' % dataset_location,
-    'dataset_filetype = "npz"'
-]
-groups['carla_multiview_train_data'] = [
-    'dataset_name = "carla"',
-    'H = %d' % H,
-    'W = %d' % W,
-    'trainset = "mags7i3t"',
-    'trainset_format = "multiview"', 
-    'trainset_seqlen = %d' % S, 
-    'dataset_location = "%s"' % dataset_location,
-    'dataset_filetype = "npz"'
-]
-groups['carla_multiview_test_data'] = [
-    'dataset_name = "carla"',
-    'H = %d' % H,
-    'W = %d' % W,
-    'testset = "mags7i3v"',
-    'testset_format = "multiview"', 
-    'testset_seqlen = %d' % S, 
-    'dataset_location = "%s"' % dataset_location,
-    'dataset_filetype = "npz"'
-]
-groups['carla_multiview_train_val_data'] = [
-    'dataset_name = "carla"',
-    'H = %d' % H,
-    'W = %d' % W,
-    'trainset = "mags7i3t"',
-    'trainset_format = "multiview"', 
-    'trainset_seqlen = %d' % S, 
-    'valset = "mags7i3v"',
-    'valset_format = "multiview"', 
-    'valset_seqlen = %d' % S, 
-    'dataset_location = "%s"' % dataset_location,
-    'dataset_filetype = "npz"'
-]
 
 ############## verify and execute ##############
 

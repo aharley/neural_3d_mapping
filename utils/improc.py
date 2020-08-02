@@ -730,7 +730,7 @@ class Summ_writer(object):
                 return self.summ_rgb(name, feat_pca, only_return=only_return)
 
     def summ_scalar(self, name, value):
-        if (not isinstance(value, float)) and ('torch' in value.type()):
+        if (not (isinstance(value, int) or isinstance(value, float) or isinstance(value, np.float32))) and ('torch' in value.type()):
             value = value.detach().cpu().numpy()
         if not np.isnan(value):
             if (self.log_freq == 1):

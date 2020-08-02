@@ -67,24 +67,14 @@ class CarlaDetModel(nn.Module):
         
         __p = lambda x: utils.basic.pack_seqdim(x, self.B)
         __u = lambda x: utils.basic.unpack_seqdim(x, self.B)
-
-        self.H, self.W, self.V, self.N = hyp.H, hyp.W, hyp.V, hyp.N
-        self.PH, self.PW = hyp.PH, hyp.PW
-
-        # if self.set_name=='test':
-        #     self.Z, self.Y, self.X = hyp.Z_test, hyp.Y_test, hyp.X_test
-        # elif self.set_name=='val':
-        #     self.Z, self.Y, self.X = hyp.Z_val, hyp.Y_val, hyp.X_val
-        # else:
+        
+        self.N = hyp.N
         self.Z, self.Y, self.X = hyp.Z, hyp.Y, hyp.X
         self.Z2, self.Y2, self.X2 = int(self.Z/2), int(self.Y/2), int(self.X/2)
-        self.Z4, self.Y4, self.X4 = int(self.Z/4), int(self.Y/4), int(self.X/4)
 
-        self.ZZ, self.ZY, self.ZX = hyp.ZZ, hyp.ZY, hyp.ZX
         self.pix_T_cams = feed['pix_T_cams']
         set_data_format = feed['set_data_format']
         self.S = feed['set_seqlen']
-        
 
         self.origin_T_camRs = feed['origin_T_camRs']
         self.origin_T_camXs = feed['origin_T_camXs']
@@ -97,7 +87,6 @@ class CarlaDetModel(nn.Module):
         self.camXs_T_camRs = __u(__p(self.camRs_T_camXs).inverse())
 
         self.xyz_camXs = feed['xyz_camXs']
-        self.xyz_camX0s = __u(utils.geom.apply_4x4(__p(self.camX0s_T_camXs), __p(self.xyz_camXs)))
         
         if self.set_name=='test' or self.set_name=='val':
             scene_centroid_x = 0.0
@@ -124,7 +113,7 @@ class CarlaDetModel(nn.Module):
                 all_ok = True
                 self.vox_util = utils.vox.Vox_util(self.Z, self.Y, self.X, self.set_name, scene_centroid=self.scene_centroid, assert_cube=True)
                 # we want to ensure this gives us a few points inbound for each element
-                inb = __u(self.vox_util.get_inbounds(__p(self.xyz_camX0s), self.Z, self.Y, self.X, already_mem=False))
+                inb = __u(self.vox_util.get_inbounds(__p(self.xyz_camXs), self.Z, self.Y, self.X, already_mem=False))
                 # this is B x S x N
                 num_inb = torch.sum(inb.float(), axis=2)
                 # this is B x S
@@ -149,28 +138,16 @@ class CarlaDetModel(nn.Module):
         self.lrtlist_camRs = lrtlist_camRs_.reshape(self.B, self.S, self.N, 19)
         self.lrtlist_camR0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camR0s_T_camRs), __p(self.lrtlist_camRs)))
         self.lrtlist_camXs = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camXs_T_camRs), __p(self.lrtlist_camRs)))
-        self.lrtlist_camX0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camX0s_T_camXs), __p(self.lrtlist_camXs)))
 
-        # print('scorelist_s bef', self.scorelist_s.detach().cpu().numpy())
         inbound_s = __u(utils.misc.rescore_lrtlist_with_inbound(
             __p(self.lrtlist_camRs), __p(self.tidlist_s), self.Z, self.Y, self.X, self.vox_util))
         self.scorelist_s *= inbound_s
-        # print('scorelist_s aft', self.scorelist_s.detach().cpu().numpy())
 
         for b in list(range(self.B)):
             if torch.sum(self.scorelist_s[:,0]) < (self.B/2): # not worth it; return early
                 return False # not OK; do not train on this
         
         self.rgb_camXs = feed['rgb_camXs']
-        
-        # self.summ_writer.summ_lrtlist(
-        #     'obj/box_camXs_g',
-        #     self.rgb_camXs[:,0],
-        #     self.lrtlist_camXs[:,0],
-        #     self.scorelist_s[:,0],
-        #     self.tidlist_s[:,0],
-        #     self.pix_T_cams[:,0])
-        # # self.summ_writer.summ_rgbs('obj/box_camXs_g', visX_e)
         
         # get 3d voxelized inputs
         self.occ_memXs = __u(self.vox_util.voxelize_xyz(__p(self.xyz_camXs), self.Z, self.Y, self.X))
@@ -179,15 +156,6 @@ class CarlaDetModel(nn.Module):
         # these are B x C x Z x Y x X
         self.summ_writer.summ_occs('3d_inputs/occ_memXs', torch.unbind(self.occ_memXs, dim=1))
         self.summ_writer.summ_unps('3d_inputs/unp_memXs', torch.unbind(self.unp_memXs, dim=1), torch.unbind(self.occ_memXs, dim=1))
-        
-        # self.summ_writer.summ_lrtlist_bev(
-        #     'obj/bev_box_camXs_g',
-        #     self.occ_memXs[:,0],
-        #     self.lrtlist_camXs[:,0],
-        #     self.scorelist_s[:,0],
-        #     self.tidlist_s[:,0],
-        #     self.vox_util, 
-        #     already_mem=False)
 
         return True # OK
         
@@ -198,12 +166,8 @@ class CarlaDetModel(nn.Module):
 
         results = dict()
 
-        # return total_loss, results, False
-
-        self.rgb_camXs = feed['rgb_camXs']
-
         # eliminate the seq dim, to make life easier
-        lrtlist_camX = self.lrtlist_camX0s[:, 0]
+        lrtlist_camX = self.lrtlist_camXs[:, 0]
         rgb_camX0 = self.rgb_camXs[:,0]
         occ_memX0 = self.occ_memXs[:,0]
         unp_memX0 = self.unp_memXs[:,0]
@@ -285,21 +249,23 @@ class CarlaDetModel(nn.Module):
                 ious, _ = utils.geom.get_iou_from_corresponded_lrtlists(lrtlist_e_, lrtlist_g_)
                 ious = ious.reshape(1, Ne, Ng)
                 ious_e = torch.max(ious, dim=2)[0]
-                self.summ_writer.summ_lrtlist('det/boxlist',
-                                              rgb_camX0[0:1],
-                                              torch.cat((lrtlist_g, lrtlist_e), dim=1),
-                                              torch.cat((ious_e.new_ones(1, Ng), ious_e), dim=1),
-                                              torch.cat([torch.ones(1, Ng).long().cuda(),
-                                                         torch.ones(1, Ne).long().cuda()+1], dim=1),
-                                              self.pix_T_cams[0:1, 0])
-                self.summ_writer.summ_lrtlist_bev('det/boxlist_bev',
-                                                  occ_memX0[0:1],
-                                                  torch.cat((lrtlist_g, lrtlist_e), dim=1),
-                                                  torch.cat((ious_e.new_ones(1, Ng), ious_e), dim=1),
-                                                  torch.cat([torch.ones(1, Ng).long().cuda(),
-                                                             torch.ones(1, Ne).long().cuda()+1], dim=1),
-                                                  self.vox_util, 
-                                                  already_mem=False)
+                self.summ_writer.summ_lrtlist(
+                    'det/boxlist_eg',
+                    rgb_camX0[0:1],
+                    torch.cat((lrtlist_g, lrtlist_e), dim=1),
+                    torch.cat((ious_e.new_ones(1, Ng), ious_e), dim=1),
+                    torch.cat([torch.ones(1, Ng).long().cuda(),
+                               torch.ones(1, Ne).long().cuda()+1], dim=1),
+                    self.pix_T_cams[0:1, 0])
+                self.summ_writer.summ_lrtlist_bev(
+                    'det/boxlist_bev_eg',
+                    occ_memX0[0:1],
+                    torch.cat((lrtlist_g, lrtlist_e), dim=1),
+                    torch.cat((ious_e.new_ones(1, Ng), ious_e), dim=1),
+                    torch.cat([torch.ones(1, Ng).long().cuda(),
+                               torch.ones(1, Ne).long().cuda()+1], dim=1),
+                    self.vox_util, 
+                    already_mem=False)
 
             ious = [0.3, 0.4, 0.5, 0.6, 0.7]
             maps_3d, maps_2d = utils.eval.get_mAP_from_lrtlist(lrtlist_e, scorelist_e, lrtlist_g, ious)

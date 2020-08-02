@@ -101,9 +101,19 @@ class Vox_util(object):
         assert(C==19)
         mem_T_cam = self.get_mem_T_ref(B, Z, Y, X, assert_cube=assert_cube)
 
-        # the apply_4x4 from utils.geom will work for the rt part
-        lrtlist_mem = utils.geom.apply_4x4_to_lrtlist(mem_T_cam, lrtlist_cam)
-        _, rtlist_mem = utils.geom.split_lrtlist(lrtlist_mem)
+        # apply_4x4 will work for the t part
+        lenlist_cam, rtlist_cam = utils.geom.split_lrtlist(lrtlist_cam)
+        __p = lambda x: utils.basic.pack_seqdim(x, B)
+        __u = lambda x: utils.basic.unpack_seqdim(x, B)
+        rlist_cam_, tlist_cam_ = utils.geom.split_rt(__p(rtlist_cam))
+        # rlist_cam_ is B*N x 3 x 3
+        # tlist_cam_ is B*N x 3
+        # tlist_cam = __u(tlist_cam_)
+        tlist_mem_ = __p(utils.geom.apply_4x4(mem_T_cam, __u(tlist_cam_)))
+        # rlist does not need to change, since cam is aligned with mem
+        rlist_mem_ = rlist_cam_.clone()
+        rtlist_mem = __u(utils.geom.merge_rt(rlist_mem_, tlist_mem_))
+        # this is B x N x 4 x 4
 
         # next we need to scale the lengths
         lenlist_cam, _ = utils.geom.split_lrtlist(lrtlist_cam)
@@ -113,10 +123,9 @@ class Vox_util(object):
         vox_size_X = (self.XMAX-self.XMIN)/float(X)
         vox_size_Y = (self.YMAX-self.YMIN)/float(Y)
         vox_size_Z = (self.ZMAX-self.ZMIN)/float(Z)
-        lenlist_mem = torch.cat([xlist*vox_size_X,
-                                 ylist*vox_size_Y,
-                                 zlist*vox_size_Z], dim=2)
-        
+        lenlist_mem = torch.cat([xlist / vox_size_X,
+                                 ylist / vox_size_Y,
+                                 zlist / vox_size_Z], dim=2)
         # merge up
         lrtlist_mem = utils.geom.merge_lrtlist(lenlist_mem, rtlist_mem)
         return lrtlist_mem
@@ -128,9 +137,18 @@ class Vox_util(object):
         assert(C==19)
         cam_T_mem = self.get_ref_T_mem(B, Z, Y, X, assert_cube=assert_cube)
 
-        # the apply_4x4 from utils.geom will work for the rt part
-        lrtlist_cam = utils.geom.apply_4x4_to_lrtlist(cam_T_mem, lrtlist_mem)
-        _, rtlist_cam = utils.geom.split_lrtlist(lrtlist_cam)
+        # apply_4x4 will work for the t part
+        lenlist_mem, rtlist_mem = utils.geom.split_lrtlist(lrtlist_mem)
+        __p = lambda x: utils.basic.pack_seqdim(x, B)
+        __u = lambda x: utils.basic.unpack_seqdim(x, B)
+        rlist_mem_, tlist_mem_ = utils.geom.split_rt(__p(rtlist_mem))
+        # rlist_cam_ is B*N x 3 x 3
+        # tlist_cam_ is B*N x 3
+        tlist_cam_ = __p(utils.geom.apply_4x4(cam_T_mem, __u(tlist_mem_)))
+        # rlist does not need to change, since cam is aligned with mem
+        rlist_cam_ = rlist_mem_.clone()
+        rtlist_cam = __u(utils.geom.merge_rt(rlist_cam_, tlist_cam_))
+        # this is B x N x 4 x 4
 
         # next we need to scale the lengths
         lenlist_mem, _ = utils.geom.split_lrtlist(lrtlist_mem)
@@ -139,10 +157,9 @@ class Vox_util(object):
         vox_size_Y = (self.YMAX-self.YMIN)/float(Y)
         vox_size_Z = (self.ZMAX-self.ZMIN)/float(Z)
         xlist, ylist, zlist = lenlist_mem.chunk(3, dim=2)
-        lenlist_cam = torch.cat([xlist/vox_size_X,
-                                 ylist/vox_size_Y,
-                                 zlist/vox_size_Z], dim=2)
-        
+        lenlist_cam = torch.cat([xlist * vox_size_X,
+                                 ylist * vox_size_Y,
+                                 zlist * vox_size_Z], dim=2)
         # merge up
         lrtlist_cam = utils.geom.merge_lrtlist(lenlist_cam, rtlist_cam)
         return lrtlist_cam

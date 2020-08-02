@@ -27,6 +27,16 @@ mod = '"det18"' # return early if score < B/2
 mod = '"det19"' # new utils
 mod = '"det20"' # B2
 mod = '"det21"' # B4
+mod = '"det22"' # clean up
+mod = '"det23"' # rand centroid
+mod = '"det24"' # padding 0
+mod = '"det25"' # avoid warping to R0
+mod = '"det26"' # scorelist *= inbound
+mod = '"det27"' # use scorelist in the vis
+mod = '"det28"' # only draw nonzero boxes
+mod = '"det29"' # cleaned up
+mod = '"det30"' # do not draw 0,1 scores
+mod = '"det31"' # cleaned up
 
 ############## define experiments ##############
 

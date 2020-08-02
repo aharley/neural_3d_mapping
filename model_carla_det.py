@@ -227,7 +227,8 @@ class CarlaDetModel(nn.Module):
             lrtlist_camX_e = self.vox_util.apply_ref_T_mem_to_lrtlist(lrtlist_halfmemX_e, self.Z2, self.Y2, self.X2)
 
             lrtlist_e = lrtlist_camX_e[0:1]
-            lrtlist_g = lrtlist_camX[0:1]
+            # lrtlist_g = lrtlist_camX[0:1] # true boxes
+            lrtlist_g = axlrtlist_camX[0:1] # axis-aligned boxes 
             scorelist_e = scorelist_e[0:1]
             scorelist_g = scorelist_g[0:1]
             lrtlist_e, lrtlist_g, scorelist_e, scorelist_g = utils.eval.drop_invalid_lrts(
@@ -237,8 +238,6 @@ class CarlaDetModel(nn.Module):
             clist_e = utils.geom.get_clist_from_lrtlist(lrtlist_e)
             lenlist_g, _ = utils.geom.split_lrtlist(lrtlist_g)
             clist_g = utils.geom.get_clist_from_lrtlist(lrtlist_g)
-            axlenlist_g, _ = utils.geom.split_lrtlist(axlrtlist_camX[0:1])
-            axclist_g = utils.geom.get_clist_from_lrtlist(axlrtlist_camX[0:1])
 
             _, Ne, _ = list(lrtlist_e.shape)
             _, Ng, _ = list(lrtlist_g.shape)

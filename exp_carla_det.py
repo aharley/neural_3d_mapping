@@ -37,6 +37,7 @@ mod = '"det28"' # only draw nonzero boxes
 mod = '"det29"' # cleaned up
 mod = '"det30"' # do not draw 0,1 scores
 mod = '"det31"' # cleaned up
+mod = '"det32"' # evaluate against axlrtlist
 
 ############## define experiments ##############
 

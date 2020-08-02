@@ -21,10 +21,10 @@ ZY = 32
 ZX = 32
 ZZ = 32
 
-N = 50 # number of boxes produced by the rcnn (not all are good)
+N = 8 # number of boxes per npz
 K = 1 # number of boxes to actually use
-S = 2 # seq length
-S_test = 3 # seq length
+# S = 2 # seq length
+# S_test = 3 # seq length
 T = 256 # height & width of birdview map
 V = 100000 # num velodyne points
 
@@ -65,8 +65,8 @@ feat3d_init = ""
 flow_init = ""
 occ_init = ""
 view_init = ""
-det_init = ""
 ego_init = ""
+det_init = ""
 
 total_init = ""
 reset_iter = False
@@ -165,6 +165,11 @@ ego_deg_l2_coeff = 0.0
 
 ego_synth_prob = 0.0
 
+#----------- det hypers -----------#
+det_anchor_size = 12.0
+det_prob_coeff = 0.0
+det_reg_coeff = 0.0
+
 #----------- mod -----------#
 
 mod = '""'
@@ -211,6 +216,7 @@ dataset_filetype = "npz"
 
 # mode selection
 do_carla_static = False
+do_carla_det = False
 do_carla_ego = False
 
 ############ rev up the experiment ############
@@ -219,6 +225,8 @@ mode = os.environ["MODE"]
 print('os.environ mode is %s' % mode)
 if mode=="CARLA_STATIC":
     exec(compile(open('exp_carla_static.py').read(), 'exp_carla_static.py', 'exec'))
+elif mode=="CARLA_DET":
+    exec(compile(open('exp_carla_det.py').read(), 'exp_carla_det.py', 'exec'))
 elif mode=="CARLA_EGO":
     exec(compile(open('exp_carla_ego.py').read(), 'exp_carla_ego.py', 'exec'))
 else:
@@ -281,12 +289,11 @@ def strnum(x):
         s = s[s.index('.'):]
     return s
 
-
 if do_test:
-    name = "%02d_s%d" % (testset_batch_size, S_test)
+    name = "%02d_s%d" % (testset_batch_size, trainset_seqlen)
     name += "_m%dx%dx%d" % (Z_test, Y_test, X_test)
 else:
-    name = "%02d_s%d" % (trainset_batch_size, S)
+    name = "%02d_s%d" % (trainset_batch_size, trainset_seqlen)
     if do_feat3d:
         name += "_m%dx%dx%d" % (Z, Y, X)
     
@@ -356,6 +363,23 @@ if do_ego:
     for l_, l in enumerate(ego_coeffs):
         if l > 0:
             name += "_%s%s" % (ego_prefixes[l_],strnum(l))
+
+if do_det:
+    name += "_D"
+    name += "%d" % det_anchor_size
+    if do_freeze_det:
+        name += "f"
+    det_coeffs = [
+        det_prob_coeff,
+        det_reg_coeff,
+    ]
+    det_prefixes = [
+        "p",
+        "r",
+    ]
+    for l_, l in enumerate(det_coeffs):
+        if l > 0:
+            name += "_%s%s" % (det_prefixes[l_],strnum(l))
 
 if do_occ:
     name += "_O"

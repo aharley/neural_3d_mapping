@@ -1,5 +1,6 @@
 from model_carla_static import CARLA_STATIC
 from model_carla_ego import CARLA_EGO
+from model_carla_det import CARLA_DET
 
 import hyperparams as hyp
 import os
@@ -14,6 +15,8 @@ def main():
         log_dir_ = os.path.join("logs_carla_static", hyp.name)
     elif hyp.do_carla_ego:
         log_dir_ = os.path.join("logs_carla_ego", hyp.name)
+    elif hyp.do_carla_det:
+        log_dir_ = os.path.join("logs_carla_det", hyp.name)
     else:
         assert(False) # what mode is this?
 
@@ -29,6 +32,11 @@ def main():
             model.go()
         elif hyp.do_carla_ego:
             model = CARLA_EGO(
+                checkpoint_dir=checkpoint_dir_,
+                log_dir=log_dir_)
+            model.go()
+        elif hyp.do_carla_det:
+            model = CARLA_DET(
                 checkpoint_dir=checkpoint_dir_,
                 log_dir=log_dir_)
             model.go()

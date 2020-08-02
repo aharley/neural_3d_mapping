@@ -4,12 +4,13 @@ import torch.nn as nn
 import torchvision
 import torchvision.ops as ops
 
-import utils_basic
-import utils_geom
-import utils_misc
+import utils.basic
+import utils.geom
+import utils.misc
 import hyperparams as hyp
+import archs.encoder3d
 
-# import utils_misc
+# import utils.misc
 
 # class HYP_debug(object):
 #     def __init__(self):
@@ -33,8 +34,8 @@ def smooth_l1_loss(deltas, targets, sigma=3.0):
 def binarize(input, threshold):
     return torch.where(input < threshold, torch.zeros_like(input), torch.ones_like(input))
 
-def meshgrid3D_xyz(B, Z, Y, X):
-    grid_z, grid_y, grid_x = utils_basic.meshgrid3D(B, Z, Y, X, stack=False)
+def meshgrid3d_xyz(B, Z, Y, X):
+    grid_z, grid_y, grid_x = utils.basic.meshgrid3d(B, Z, Y, X, stack=False)
     # each one is shaped B x Z x Y x X
     grid_z = grid_z.permute(0, 3, 2, 1)
     grid_x = grid_x.permute(0, 3, 2, 1)
@@ -189,12 +190,12 @@ def detection_target_graph(i, high_prob_indices, corners_min_max_g, valid_mask, 
     valid_inds = torch.stack(torch.where(valid_mask[i, :]), dim=1).squeeze(dim=1) # this is (valid_ids, )
     corners_min_max_g_i = corners_min_max_g[i, valid_inds] # (valid_ids, 3, 2)
 
-    # calculate overlap in 3D
+    # calculate overlap in 3d
     overlaps = overlap_graph(selected_3d_bboxes, corners_min_max_g_i) # this is (selected_bbox, valid_ids)
 
     return selected_3d_bboxes, selected_3d_bboxes_scores, overlaps, selected_3d_bboxes_co
 
-    # # calculate overlap in 3D
+    # # calculate overlap in 3d
     # overlaps = overlap_graph(selected_3d_bboxes, corners_min_max_g_i) # this is (selected_bbox, valid_ids)
     # roi_iou_max = torch.max(overlaps, dim=1)[0] # (selected_bbox, )
     # positive_roi_bool = (roi_iou_max >= 0.5)
@@ -242,47 +243,51 @@ class DetNet(nn.Module):
 
         super(DetNet, self).__init__()
         self.pred_dim = 7
-        self.conv1 = torch.nn.Conv3d(in_channels=hyp.feat_dim, out_channels=self.pred_dim, kernel_size=3, stride=1, padding=1).cuda()
+        
+        in_dim = 4
+        # self.net = archs.encoder3d.Net3d(in_channel=in_dim, pred_dim=self.pred_dim).cuda()
+        self.net = torch.nn.Conv3d(in_channels=hyp.feat3d_dim, out_channels=self.pred_dim, kernel_size=3, stride=1, padding=1).cuda()
+        print(self.net)
 
     def forward(self,
-        boxes_g,
-        scores_g,
-        feat_zyx,
-        summ_writer
-        ):
-
+                lrtlist_g,
+                scores_g,
+                feat_zyx,
+                summ_writer
+    ):
+        
         total_loss = torch.tensor(0.0).cuda()
 
         B, C, Z, Y, X = feat_zyx.shape
-        _, N, _ = boxes_g.shape # dim-2 is xc,yc,zc,lx,ly,lz,rx,ry,rz
+        _, N, _ = lrtlist_g.shape
+        # Z, Y, X = int(Z/2), int(Y/2), int(X/2)
 
         total_loss = 0.0
         pred_dim = self.pred_dim # total 7, 6 deltas, 1 objectness
 
         feat = feat_zyx.permute(0, 1, 4, 3, 2) # get feat in xyz order, now B x C x X x Y x Z
 
-        corners = utils_geom.transform_boxes_to_corners(boxes_g) # corners is B x N x 8 x 3, last dim in xyz order
+        corners = utils.geom.get_xyzlist_from_lrtlist(lrtlist_g) # corners is B x N x 8 x 3, last dim in xyz order
         corners_max = torch.max(corners, dim=2)[0] # B x N x 3
         corners_min = torch.min(corners, dim=2)[0]
         corners_min_max_g = torch.stack([corners_min, corners_max], dim=3) # this is B x N x 3 x 2
 
         # trim down, to save some time
-        N = hyp.K
-        boxes_g = boxes_g[:, :N, :6]
+        N = min(N, hyp.K)
         corners_min_max_g = corners_min_max_g[:,:N]
         scores_g = scores_g[:, :N] # B x N
 
         # boxes_g is [-0.5~63.5, -0.5~15.5, -0.5~63.5]
-        centers_g = boxes_g[:, :, :3] # B x N x 3
+        centers_g = utils.geom.get_clist_from_lrtlist(lrtlist_g)
         # centers_g is B x N x 3
-        grid = meshgrid3D_xyz(B, Z, Y, X)[0] # just one grid please, this is X x Y x Z x 3
+        grid = meshgrid3d_xyz(B, Z, Y, X)[0] # just one grid please, this is X x Y x Z x 3
 
         delta_positions_raw = centers_g.view(B, N, 1, 1, 1, 3) - grid.view(1, 1, X, Y, Z, 3)
         # tf.summary.histogram('delta_positions_raw', delta_positions_raw)
         delta_positions = delta_positions_raw / hyp.det_anchor_size
         # tf.summary.histogram('delta_positions', delta_positions)
 
-        lengths_g = boxes_g[:, :, 3:6] # B x N x 3
+        lengths_g = utils.geom.get_lenlist_from_lrtlist(lrtlist_g) # B x N x 3
         # tf.summary.histogram('lengths_g', lengths_g)
         delta_lengths = torch.log(lengths_g / hyp.det_anchor_size)
         delta_lengths = torch.max(delta_lengths, -1e6 * torch.ones_like(delta_lengths)) # to avoid -infs turning into nans
@@ -316,17 +321,26 @@ class DetNet(nn.Module):
         # tf.summary.histogram('anchor_deltas_gt', anchor_deltas_gt)
         # ok nice, these do not have any extreme values
 
+        
+
         pos_equal_one = binarize(torch.sum(object_dist_mask, dim=1), 0.5).squeeze(dim=4) # B x X x Y x Z
         neg_equal_one = binarize(torch.sum(object_neg_dist_mask, dim=1), 0.5) 
         neg_equal_one = torch.ones_like(neg_equal_one) - neg_equal_one # B x X x Y x Z
         pos_equal_one_sum = torch.sum(pos_equal_one, [1,2,3]) # B
         neg_equal_one_sum = torch.sum(neg_equal_one, [1,2,3])
 
+        summ_writer.summ_occ('det/pos_equal_one', pos_equal_one.unsqueeze(1))
+
         # set min to one in case no object, to avoid nan
         pos_equal_one_sum_safe = torch.max(pos_equal_one_sum, torch.ones_like(pos_equal_one_sum)) # B
         neg_equal_one_sum_safe = torch.max(neg_equal_one_sum, torch.ones_like(neg_equal_one_sum)) # B
 
-        pred = self.conv1(feat) # this is B x 7 x X x Y x Z
+        pred = self.net(feat) # this is B x 7 x X x Y x Z
+        summ_writer.summ_feat('det/feat', feat, pca=False)
+        summ_writer.summ_feat('det/pred', pred, pca=True)
+        
+        # print('feat', feat.shape)
+        # print('pred', pred.shape)
         pred = pred.permute(0, 2, 3, 4, 1) # B x X x Y x Z x 7
         pred_anchor_deltas = pred[..., 1:] # B x X x Y x Z x 6
         pred_objectness_logits = pred[..., 0] # B x X x Y x Z
@@ -344,16 +358,16 @@ class DetNet(nn.Module):
             target=pos_equal_one,
             reduction='none',
         )
-        cls_pos_loss = utils_basic.reduce_masked_mean(overall_loss, pos_equal_one)
-        cls_neg_loss = utils_basic.reduce_masked_mean(overall_loss, neg_equal_one)
+        cls_pos_loss = utils.basic.reduce_masked_mean(overall_loss, pos_equal_one)
+        cls_neg_loss = utils.basic.reduce_masked_mean(overall_loss, neg_equal_one)
         loss_prob = torch.sum(alpha * cls_pos_loss + beta * cls_neg_loss)
 
         pos_mask = pos_equal_one.unsqueeze(dim=4) # B x X x Y x Z x 1
         loss_l1 = smooth_l1_loss(pos_mask * pred_anchor_deltas, pos_mask * anchor_deltas_gt) # B x X x Y x Z x 1
-        loss_reg = torch.sum(loss_l1/pos_equal_one_sum_safe.view(-1, 1, 1, 1, 1))/hyp.B
+        loss_reg = torch.sum(loss_l1/pos_equal_one_sum_safe.view(-1, 1, 1, 1, 1))/float(B)
 
-        total_loss = utils_misc.add_loss('det/detect_prob', total_loss, loss_prob, hyp.det_prob_coeff, summ_writer)
-        total_loss = utils_misc.add_loss('det/detect_reg', total_loss, loss_reg, hyp.det_reg_coeff, summ_writer)
+        total_loss = utils.misc.add_loss('det/detect_prob', total_loss, loss_prob, hyp.det_prob_coeff, summ_writer)
+        total_loss = utils.misc.add_loss('det/detect_reg', total_loss, loss_reg, hyp.det_reg_coeff, summ_writer)
 
         # finally, turn the preds into hard boxes, with nms
         (
@@ -387,14 +401,13 @@ class DetNet(nn.Module):
 
                 padded_boxes_e[b] = padded_boxes0_e[0]
                 padded_scores_e[b] = padded_scores0_e[0]
-
-        return total_loss, padded_boxes_e, padded_scores_e, tidlist, bs_selected_scores, bs_overlaps
+        return total_loss, padded_boxes_e, padded_scores_e, tidlist, pred_objectness, bs_selected_scores, bs_overlaps
 
 if __name__ == "__main__":
     A = torch.randn(5, 10)
     B = torch.randn(5, 10)
     # print(smooth_l1_loss(A, A+1))
-    # meshgrid3D_xyz(2, 64, 64, 64)
+    # meshgrid3d_xyz(2, 64, 64, 64)
 
     boxes1 = torch.randn(2, 3, 1)
     boxes1 = boxes1.repeat(1, 1, 2) #2 x 3 x 2

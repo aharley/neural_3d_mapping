@@ -6,10 +6,11 @@ import torch.nn.functional as F
 EPS = 1e-6
 import copy
 
-def float2str(x):
+def float2str(x, maxlen=3):
     s = '%g' % x
     if '.' in s:
         s = s[s.index('.'):]
+    s = s[:min(len(s),maxlen)]
     return s
 
 def assert_same_shape(t1, t2):

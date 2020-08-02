@@ -161,28 +161,8 @@ class CarlaStaticModel(nn.Module):
         
         origin_T_camRs_ = self.origin_T_camRs.reshape(self.B, self.S, 1, 4, 4).repeat(1, 1, self.N, 1, 1).reshape(self.B*self.S, self.N, 4, 4)
         boxlists = feed['boxlists']
-        self.scorelist_s = feed['scorelists']
-        self.tidlist_s = feed['tidlists']
-        boxlists_ = boxlists.reshape(self.B*self.S, self.N, 9)
-        lrtlist_camRs_ = utils.misc.parse_boxes(boxlists_, origin_T_camRs_)
-        self.lrtlist_camRs = lrtlist_camRs_.reshape(self.B, self.S, self.N, 19)
-        self.lrtlist_camR0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camR0s_T_camRs), __p(self.lrtlist_camRs)))
-        self.lrtlist_camXs = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camXs_T_camRs), __p(self.lrtlist_camRs)))
-        self.lrtlist_camX0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camX0s_T_camXs), __p(self.lrtlist_camXs)))
-
-        self.scorelist_s = __u(utils.misc.rescore_lrtlist_with_inbound(
-            __p(self.lrtlist_camRs), self.tidlist_s), self.Z, self.Y, self.X, self.vox_util, pad=2.0)
 
         self.rgb_camXs = feed['rgb_camXs']
-        visX_e = []
-        for s in list(range(0, self.S, 2)):
-            visX_e.append(self.summ_writer.summ_lrtlist(
-                '', self.rgb_camXs[:,s],
-                self.lrtlist_camXs[:,s],
-                self.scorelist_s[:,s],
-                self.tidlist_s[:,s],
-                self.pix_T_cams[:,s], only_return=True))
-        self.summ_writer.summ_rgbs('obj/box_camXs_g', visX_e)
 
         ## get the projected depthmap and inbound mask
         self.depth_camXs_, self.valid_camXs_ = utils.geom.create_depth_image(__p(self.pix_T_cams), __p(self.xyz_camXs), self.H, self.W)

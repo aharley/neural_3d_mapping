@@ -58,13 +58,14 @@ mod = '"sta47"' # zero padding; log500
 mod = '"sta48"' # replication padding; log500
 mod = '"sta49"' # repeat after deleting some code
 mod = '"sta50"' # pret 02_s2_m128x32x128_1e-3_F3_d32_s.01_O_c2_s.1_E3_n2_c.1_mags7i3t_sta48
+mod = '"sta51"' # same deal after some cleanup
 
 ############## exps ##############
 
 exps['builder'] = [
     'carla_static', # mode
     'carla_multiview_10_data', # dataset
-    'carla_bounds', 
+    '16-4-16_bounds', 
     '3_iters',
     'lr0',
     'B1',
@@ -79,7 +80,7 @@ exps['builder'] = [
 exps['trainer'] = [
     'carla_static', # mode
     'carla_multiview_train_data', # dataset
-    'carla_bounds', 
+    '16-4-16_bounds', 
     '300k_iters',
     'lr3',
     'B2',

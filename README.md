@@ -16,7 +16,7 @@ I am working here on building a clean copy of our ICLR paper's code and results.
 - [x] instructional readme
 - [x] sample data on google drive
 - [ ] synth training for ego
-- [ ] det
+- [x] det
 - [ ] flow
 - [ ] nice gif in readme
 - [ ] full data on google drive
@@ -31,6 +31,7 @@ Install pytorch, tensorflow, scikit-image, and opencv. These commands work on AW
 conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
 conda install -c conda-forge tensorflow moviepy scikit-image
 pip install opencv-python
+pip install connected-components-3d
 ```
 To make tensorboard work with pytorch, install tensorboardX:
 ```

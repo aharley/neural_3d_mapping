@@ -198,7 +198,7 @@ def reduce_emb(emb, valid=None, inbound=None, together=False):
 
 def get_feat_pca(feat, valid=None):
     B, C, D, W = list(feat.size())
-    # feat is B x C x D x W. If 3D input, average it through Height dimension before passing into this function.
+    # feat is B x C x D x W. If 3d input, average it through Height dimension before passing into this function.
 
     pca, _ = reduce_emb(feat, valid=valid,inbound=None, together=True)
     # pca is B x 3 x W x D
@@ -888,7 +888,7 @@ class Summ_writer(object):
         B2, N, D, E = list(corners_cam.shape)
         assert(B2==B)
         assert(D==8) # 8 corners
-        assert(E==3) # 3D
+        assert(E==3) # 3d
 
         rgb = back2color(rgb)
 
@@ -1169,7 +1169,7 @@ class Summ_writer(object):
         else:
             return None
 
-    def summ_3D_flow(self, name, flow, clip=0.0):
+    def summ_3d_flow(self, name, flow, clip=0.0):
         if self.save_this:
             self.summ_histogram('%s_flow_x' % name, flow[:,0])
             self.summ_histogram('%s_flow_y' % name, flow[:,1])
@@ -1325,7 +1325,7 @@ if __name__ == "__main__":
 
     '''test summ_flow'''
     rand_feats = torch.rand(2, 3, 128, 32, 128)
-    summ_writer.summ_3D_flow(rand_feats)
+    summ_writer.summ_3d_flow(rand_feats)
 
 
     writer.close()

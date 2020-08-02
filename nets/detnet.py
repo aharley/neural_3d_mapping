@@ -10,14 +10,6 @@ import utils.misc
 import hyperparams as hyp
 import archs.encoder3d
 
-# import utils.misc
-
-# class HYP_debug(object):
-#     def __init__(self):
-#         self.det_anchor_size=1.0
-
-# hyp = HYP_debug()
-
 def smooth_l1_loss(deltas, targets, sigma=3.0):
     sigma2 = sigma * sigma
     diffs = deltas - targets
@@ -133,28 +125,6 @@ def rpn_proposal_graph(pred_objectness, pred_anchor_deltas, valid_mask, corners_
     else:
         return None, None, None
 
-# def gather_nd(tensor, index): # pls dont use this, this doesn't work...
-#     index_shape = list(index.shape)
-#     tensor_shape = list(tensor.shape)
-
-#     axis_dim = index_shape[-1]
-#     assert axis_dim <= tensor.ndim
-
-#     final_shape = index_shape[:-1] + tensor_shape[axis_dim:]
-
-#     print(axis_dim)
-
-#     index = index.view(-1, axis_dim) # flatten it
-#     res = []
-
-#     for i in index:
-#         res.append(tuple(tensor[i]))
-
-#     res = torch.stack(res, dim=0) 
-
-#     return res.view(final_shape)
-
-
 def detection_target_graph(i, high_prob_indices, corners_min_max_g, valid_mask, pred_objectness, pred_anchor_deltas,
                            iou_thresh=0.5): #tested
 
@@ -195,58 +165,14 @@ def detection_target_graph(i, high_prob_indices, corners_min_max_g, valid_mask, 
 
     return selected_3d_bboxes, selected_3d_bboxes_scores, overlaps, selected_3d_bboxes_co
 
-    # # calculate overlap in 3d
-    # overlaps = overlap_graph(selected_3d_bboxes, corners_min_max_g_i) # this is (selected_bbox, valid_ids)
-    # roi_iou_max = torch.max(overlaps, dim=1)[0] # (selected_bbox, )
-    # positive_roi_bool = (roi_iou_max >= 0.5)
-    # positive_indices = torch.where(positive_roi_bool)[0]
-    # negative_roi_bool = (roi_iou_max < 0.5)
-    # negative_indices = torch.where(negative_roi_bool)[0]
-
-    # positive_count = 3 # [what is this??]
-
-    # positive_indices = tf.random_shuffle(positive_indices)[:positive_count]
-    # positive_count = tf.shape(positive_indices)[0]
-    # # Negative ROIs. Add enough to maintain positive:negative ratio.
-    # ratio = 1.0 / 0.3
-    # negative_count = tf.cast(ratio * tf.cast(positive_count, tf.float32), tf.int32) - positive_count
-    # negative_indices = tf.random_shuffle(negative_indices)[:negative_count]
-    # # Gather selected ROIs
-    # positive_rois = tf.gather(selected_3d_bboxes, positive_indices)
-    # positive_rois_score = tf.gather(selected_3d_bboxes_scores, positive_indices)
-    # negative_rois = tf.gather(selected_3d_bboxes, negative_indices)
-
-    # # Assign positive ROIs to GT boxes.
-    # positive_overlaps = tf.gather(overlaps, positive_indices)
-    # roi_gt_box_assignment = tf.cond(
-    #     tf.greater(tf.shape(positive_overlaps)[1], 0),
-    #     true_fn = lambda: tf.argmax(positive_overlaps, axis=1),
-    #     false_fn = lambda: tf.cast(tf.constant([]),tf.int64)
-    # )
-    # # corners_min_max_g_i is N x 3 x 2 (zyx, zyx)
-    # roi_gt_boxes = tf.gather(corners_min_max_g_i, roi_gt_box_assignment)
-    # # nrois x 128 x 128 x 128
-
-    # deltas = box_refinement_graph(positive_rois, roi_gt_boxes)
-    # rois = tf.concat([positive_rois, negative_rois], axis=0)
-    # class_label = tf.ones((tf.shape(positive_rois)[0]))
-    # N_neg = tf.shape(negative_rois)[0]
-    # N_pos = tf.maximum(10 - tf.shape(rois)[0], 0)
-    # class_label = tf.pad(class_label, [(0, N_neg+N_pos)])
-    # rois = tf.pad(rois, [(0, N_pos), (0, 0), (0, 0)])
-    # deltas = tf.pad(deltas, [(0, N_neg + N_pos), (0, 0)])
-    # return rois, deltas, class_label, selected_3d_bboxes, selected_3d_bboxes_scores, overlaps, selected_3d_bboxes_co
-
 class DetNet(nn.Module):
     def __init__(self):
         print('DetNet...')
 
         super(DetNet, self).__init__()
         self.pred_dim = 7
-        
-        in_dim = 4
-        # self.net = archs.encoder3d.Net3d(in_channel=in_dim, pred_dim=self.pred_dim).cuda()
         self.net = torch.nn.Conv3d(in_channels=hyp.feat3d_dim, out_channels=self.pred_dim, kernel_size=3, stride=1, padding=1).cuda()
+
         print(self.net)
 
     def forward(self,
@@ -255,14 +181,11 @@ class DetNet(nn.Module):
                 feat_zyx,
                 summ_writer
     ):
-        
         total_loss = torch.tensor(0.0).cuda()
 
         B, C, Z, Y, X = feat_zyx.shape
         _, N, _ = lrtlist_g.shape
-        # Z, Y, X = int(Z/2), int(Y/2), int(X/2)
 
-        total_loss = 0.0
         pred_dim = self.pred_dim # total 7, 6 deltas, 1 objectness
 
         feat = feat_zyx.permute(0, 1, 4, 3, 2) # get feat in xyz order, now B x C x X x Y x Z
@@ -283,15 +206,11 @@ class DetNet(nn.Module):
         grid = meshgrid3d_xyz(B, Z, Y, X)[0] # just one grid please, this is X x Y x Z x 3
 
         delta_positions_raw = centers_g.view(B, N, 1, 1, 1, 3) - grid.view(1, 1, X, Y, Z, 3)
-        # tf.summary.histogram('delta_positions_raw', delta_positions_raw)
         delta_positions = delta_positions_raw / hyp.det_anchor_size
-        # tf.summary.histogram('delta_positions', delta_positions)
 
         lengths_g = utils.geom.get_lenlist_from_lrtlist(lrtlist_g) # B x N x 3
-        # tf.summary.histogram('lengths_g', lengths_g)
         delta_lengths = torch.log(lengths_g / hyp.det_anchor_size)
         delta_lengths = torch.max(delta_lengths, -1e6 * torch.ones_like(delta_lengths)) # to avoid -infs turning into nans
-        # tf.summary.histogram('delta_lengths', delta_lengths)
 
         lengths_g = lengths_g.view(B, N, 1, 1, 1, 3).repeat(1, 1, X, Y, Z, 1) # B x N x X x Y x Z x 3
         delta_lengths = delta_lengths.view(B, N, 1, 1, 1, 3).repeat(1, 1, X, Y, Z, 1) # B x N x X x Y x Z x 3
@@ -310,18 +229,12 @@ class DetNet(nn.Module):
             if anchor_deltas_gt is None:
                 anchor_deltas_gt = delta_gt[:, obj_id, :, :, :, :] * object_dist_mask[:, obj_id, :, :, :, :]
                 current_mask = object_dist_mask[:, obj_id, :, :, :, :]
-
             else:
                 # don't overwrite anchor positions that are already taken
                 overlap = current_mask * object_dist_mask[:, obj_id, :, :, :, :]
                 anchor_deltas_gt += (torch.ones_like(overlap)- overlap) * delta_gt[:, obj_id, :, :, :, :] * object_dist_mask[:, obj_id, :, :, :, :]
                 current_mask = current_mask + object_dist_mask[:, obj_id, :, :, :, :]
                 current_mask = binarize(current_mask,  0.5)
-
-        # tf.summary.histogram('anchor_deltas_gt', anchor_deltas_gt)
-        # ok nice, these do not have any extreme values
-
-        
 
         pos_equal_one = binarize(torch.sum(object_dist_mask, dim=1), 0.5).squeeze(dim=4) # B x X x Y x Z
         neg_equal_one = binarize(torch.sum(object_neg_dist_mask, dim=1), 0.5) 
@@ -339,15 +252,10 @@ class DetNet(nn.Module):
         summ_writer.summ_feat('det/feat', feat, pca=False)
         summ_writer.summ_feat('det/pred', pred, pca=True)
         
-        # print('feat', feat.shape)
-        # print('pred', pred.shape)
         pred = pred.permute(0, 2, 3, 4, 1) # B x X x Y x Z x 7
         pred_anchor_deltas = pred[..., 1:] # B x X x Y x Z x 6
         pred_objectness_logits = pred[..., 0] # B x X x Y x Z
         pred_objectness = torch.nn.functional.sigmoid(pred_objectness_logits) # B x X x Y x Z
-
-        # pred_anchor_deltas = pred_anchor_deltas.cpu()
-        # pred_objectness = pred_objectness.cpu()
 
         alpha = 1.5
         beta = 1.0
@@ -384,9 +292,7 @@ class DetNet(nn.Module):
         padded_boxes_e = torch.zeros(B, N, 9).float().cuda()
         padded_scores_e = torch.zeros(B, N).float().cuda()
         if bs_selected_boxes_co is not None: 
-
             for b in list(range(B)):
-                
                 # make the boxes 1 x N x 9 (instead of B x ? x 6)
                 padded_boxes0_e = bs_selected_boxes_co[b].unsqueeze(0)
                 padded_scores0_e = bs_selected_scores[b].unsqueeze(0)

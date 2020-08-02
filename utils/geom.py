@@ -462,6 +462,12 @@ def get_xyzlist_from_lrtlist(lrtlist):
     xyzlist_cam = xyzlist_cam_.reshape(B, N, 8, 3)
     return xyzlist_cam
 
+def get_lenlist_from_lrtlist(lrtlist):
+    B, N, D = list(lrtlist.shape)
+    assert(D==19)
+    lenlist, _ = split_lrtlist(lrtlist)
+    return lenlist
+
 def get_clist_from_lrtlist(lrtlist):
     B, N, D = list(lrtlist.shape)
     assert(D==19)
@@ -760,13 +766,15 @@ def get_iou_from_corresponded_lrtlists(lrtlist_a, lrtlist_b):
     xyzlist_b = xyzlist_b.detach().cpu().numpy()
 
     # ious = np.zeros((B, N), np.float32)
-    ioulist = torch.zeros(B, N, dtype=torch.float32, device=torch.device('cuda'))
+    ioulist_3d = torch.zeros(B, N, dtype=torch.float32, device=torch.device('cuda'))
+    ioulist_2d = torch.zeros(B, N, dtype=torch.float32, device=torch.device('cuda'))
     for b in list(range(B)):
         for n in list(range(N)):
-            iou, _ = utils.box.box3d_iou(xyzlist_a[b,n], xyzlist_b[b,n]+1e-4)
+            iou_3d, iou_2d = utils.box.box3d_iou(xyzlist_a[b,n], xyzlist_b[b,n]+1e-4)
             # print('computed iou %d,%d: %.2f' % (b, n, iou))
-            ioulist[b,n] = iou
-    return ioulist
+            ioulist_3d[b,n] = iou_3d
+            ioulist_2d[b,n] = iou_2d
+    return ioulist_3d, ioulist_2d
 
 def get_centroid_from_box2d(box2d):
     ymin = box2d[:,0]
@@ -1198,6 +1206,27 @@ def inflate_to_axis_aligned_boxlist(boxlist):
     # boxlist_norot is B x N x 9
 
     return boxlist_norot
+
+def inflate_to_axis_aligned_lrtlist(lrtlist):
+    B, N, D = list(lrtlist.shape)
+    assert(D==19)
+    corners = get_xyzlist_from_lrtlist(lrtlist)
+    # this is B x N x 8 x 3
+    
+    corners_max = torch.max(corners, dim=2)[0]
+    corners_min = torch.min(corners, dim=2)[0]
+
+    centers = (corners_max + corners_min) / 2.0
+    sizes = corners_max - corners_min
+    rots = torch.zeros_like(sizes)
+
+    # we want: xc, yc, zc, lx, ly, lz, rx, ry, rz
+    boxlist_norot = torch.cat([centers, sizes, rots], dim=2)
+    # boxlist_norot is B x N x 9
+    
+    lrtlist_norot = convert_boxlist_to_lrtlist(boxlist_norot)
+    
+    return lrtlist_norot
 
 def depthrt2flow(depth_cam0, cam1_T_cam0, pix_T_cam):
     B, C, H, W = list(depth_cam0.shape)

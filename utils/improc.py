@@ -955,7 +955,9 @@ class Summ_writer(object):
         # draw
         for ind, corners in enumerate(corners_pix):
             # corners is 8 x 2
-            if not np.isclose(scores[ind], 0.0):
+            if (not np.isclose(scores[ind], 0.0)):
+                # only proceed into drawing if the score is not 0.0 (which means invalid)
+                
                 # print 'ind %d; tid = %d; score = %.3f' % (ind, tids[ind], scores[ind])
                 color_id = tids[ind] % 20
                 color = color_map[color_id]
@@ -964,17 +966,15 @@ class Summ_writer(object):
                 cv2.circle(rgb,(centers_pix[ind,0,0],centers_pix[ind,0,1]),1,color,-1)
 
                 # print('putting score text at', np.min(corners[:,0]), np.min(corners[:,1]))
-                cv2.putText(rgb,
-                            utils.basic.float2str(scores[ind]),
-                            # '%.3f' % (scores[ind]), 
-                            # '%.2f match' % (scores[ind]), 
-                            # '%.2f IOU' % (scores[ind]), 
-                            # '%d (%.2f)' % (tids[ind], scores[ind]), 
-                            (np.min(corners[:,0]), np.min(corners[:,1])),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1.0, # font scale (float)
-                            color,
-                            2) # font thickness (int)
+                if not np.isclose(scores[ind], 1.0):
+                    # only put the score if it's not exactly 1.0 (which means gt)
+                    cv2.putText(rgb,
+                                utils.basic.float2str(scores[ind]),
+                                (np.min(corners[:,0]), np.min(corners[:,1])),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                1.0, # font scale (float)
+                                color,
+                                2) # font thickness (int)
 
                 for c in corners:
                     c0 = np.clip(int(c[0]), 0,  W-1)

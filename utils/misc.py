@@ -306,7 +306,7 @@ def collect_object_info(lrtlist_camRs, boxlist_camRs, tidlist_s, scorelist_s, K,
     # return obj_lrt_traj, obj_tid_traj, obj_score_traj
     return obj_lrt_traj, obj_box_traj, obj_score_traj
 
-def rescore_lrtlist_with_inbound(lrtlist_camR, tidlist, Z, Y, X, vox_util, pad=2.0):
+def rescore_lrtlist_with_inbound(lrtlist_camR, tidlist, Z, Y, X, vox_util, pad=0.0):
     # lrtlist_camR is B x N x 19
     # assume R is the coord where we want to check inbound-ness
     B, N, D = list(lrtlist_camR.shape)

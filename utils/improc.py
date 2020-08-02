@@ -920,8 +920,6 @@ class Summ_writer(object):
         # tids is N
         # boxes is N x 9 < this is only here to print some rotation info
 
-        # cv2.cvtColor seems to cause an Illegal instruction error on compute-0-38; no idea why
-        
         rgb = np.transpose(rgb, [1, 2, 0]) # put channels last
         rgb = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR) 
 
@@ -945,13 +943,7 @@ class Summ_writer(object):
 
         if frame_id is not None:
             color = np.array(color_map[0])*255.0
-            color[:] = 255
-            # color[-1] = 255
-            # print(np.array(color_map[0])*255.0)
-            # color = np.array([255, 255, 255], np.uint8)
-            # print(color)
-            # ???
-            # print('putting frame id', frame_id)
+            color[:] = 255 # white
             cv2.putText(rgb,
                         '%02d' % frame_id,
                         (5, 20), # from left, from top
@@ -959,87 +951,69 @@ class Summ_writer(object):
                         0.5, # font scale (float)
                         color, 
                         1) # font thickness (int)
-        # else:
-        #     print('frame_id is none')
             
         # draw
         for ind, corners in enumerate(corners_pix):
             # corners is 8 x 2
-            # if not np.isclose(scores[ind], 0.0):
+            if not np.isclose(scores[ind], 0.0):
+                # print 'ind %d; tid = %d; score = %.3f' % (ind, tids[ind], scores[ind])
+                color_id = tids[ind] % 20
+                color = color_map[color_id]
+                color = np.array(color)*255.0
 
-            # print('ind', ind)
-            # print('score = %.2f' % scores[ind])
-            color_id = tids[ind] % 20
-            color = color_map[color_id]
-            color = np.array(color)*255.0
-            # color = (0,191,255)
-            # color = (255,191,0)
-            # print 'tid = %d; score = %.3f' % (tids[ind], scores[ind])
+                cv2.circle(rgb,(centers_pix[ind,0,0],centers_pix[ind,0,1]),1,color,-1)
 
-            cv2.circle(rgb,(centers_pix[ind,0,0],centers_pix[ind,0,1]),1,color,-1)
+                # print('putting score text at', np.min(corners[:,0]), np.min(corners[:,1]))
+                cv2.putText(rgb,
+                            utils.basic.float2str(scores[ind]),
+                            # '%.3f' % (scores[ind]), 
+                            # '%.2f match' % (scores[ind]), 
+                            # '%.2f IOU' % (scores[ind]), 
+                            # '%d (%.2f)' % (tids[ind], scores[ind]), 
+                            (np.min(corners[:,0]), np.min(corners[:,1])),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1.0, # font scale (float)
+                            color,
+                            2) # font thickness (int)
 
-            # print('putting score text at', np.min(corners[:,0]), np.min(corners[:,1]))
-            cv2.putText(rgb,
-                        utils.basic.float2str(scores[ind]),
-                        # '%.3f' % (scores[ind]), 
-                        # '%.2f match' % (scores[ind]), 
-                        # '%.2f IOU' % (scores[ind]), 
-                        # '%d (%.2f)' % (tids[ind], scores[ind]), 
-                        (np.min(corners[:,0]), np.min(corners[:,1])),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1.0, # font scale (float)
-                        color,
-                        2) # font thickness (int)
+                for c in corners:
+                    c0 = np.clip(int(c[0]), 0,  W-1)
+                    c1 = np.clip(int(c[1]), 0,  H-1)
+                    rgb[c1, c0, :] = 255
 
-            for c in corners:
+                # we want to distinguish between in-plane edges and out-of-plane ones
+                # so let's recall how the corners are ordered:
 
-                # rgb[pt1[0], pt1[1], :] = 255
-                # rgb[pt2[0], pt2[1], :] = 255
-                # rgb[np.clip(int(c[0]), 0, W), int(c[1]), :] = 255
+                xs = np.array([1/2., 1/2., -1/2., -1/2., 1/2., 1/2., -1/2., -1/2.])
+                ys = np.array([1/2., 1/2., 1/2., 1/2., -1/2., -1/2., -1/2., -1/2.])
+                zs = np.array([1/2., -1/2., -1/2., 1/2., 1/2., -1/2., -1/2., 1/2.])
 
-                c0 = np.clip(int(c[0]), 0,  W-1)
-                c1 = np.clip(int(c[1]), 0,  H-1)
-                rgb[c1, c0, :] = 255
+                for ii in list(range(0,2)):
+                    cv2.circle(rgb,(corners_pix[ind,ii,0],corners_pix[ind,ii,1]),2,color,-1)
+                for ii in list(range(2,4)):
+                    cv2.circle(rgb,(corners_pix[ind,ii,0],corners_pix[ind,ii,1]),1,color,-1)
 
-            # we want to distinguish between in-plane edges and out-of-plane ones
-            # so let's recall how the corners are ordered:
+                xs = np.reshape(xs, [8, 1])
+                ys = np.reshape(ys, [8, 1])
+                zs = np.reshape(zs, [8, 1])
+                offsets = np.concatenate([xs, ys, zs], axis=1)
 
-            # (new clockwise ordering)
-            xs = np.array([1/2., 1/2., -1/2., -1/2., 1/2., 1/2., -1/2., -1/2.])
-            ys = np.array([1/2., 1/2., 1/2., 1/2., -1/2., -1/2., -1/2., -1/2.])
-            zs = np.array([1/2., -1/2., -1/2., 1/2., 1/2., -1/2., -1/2., 1/2.])
+                corner_inds = list(range(8))
+                combos = list(combinations(corner_inds, 2))
 
-            for ii in list(range(0,2)):
-                cv2.circle(rgb,(corners_pix[ind,ii,0],corners_pix[ind,ii,1]),2,color,-1)
-            for ii in list(range(2,4)):
-                cv2.circle(rgb,(corners_pix[ind,ii,0],corners_pix[ind,ii,1]),1,color,-1)
-
-            xs = np.reshape(xs, [8, 1])
-            ys = np.reshape(ys, [8, 1])
-            zs = np.reshape(zs, [8, 1])
-            offsets = np.concatenate([xs, ys, zs], axis=1)
-
-            corner_inds = list(range(8))
-            combos = list(combinations(corner_inds, 2))
-
-            for combo in combos:
-                pt1 = offsets[combo[0]]
-                pt2 = offsets[combo[1]]
-                # draw this if it is an in-plane edge
-                eqs = pt1==pt2
-                if np.sum(eqs)==2:
-                    i, j = combo
-                    pt1 = (corners[i, 0], corners[i, 1])
-                    pt2 = (corners[j, 0], corners[j, 1])
-                    retval, pt1, pt2 = cv2.clipLine((0, 0, W, H), pt1, pt2)
-                    if retval:
-                        cv2.line(rgb, pt1, pt2, color, thickness, cv2.LINE_AA)
-
-                    # rgb[pt1[0], pt1[1], :] = 255
-                    # rgb[pt2[0], pt2[1], :] = 255
+                for combo in combos:
+                    pt1 = offsets[combo[0]]
+                    pt2 = offsets[combo[1]]
+                    # draw this if it is an in-plane edge
+                    eqs = pt1==pt2
+                    if np.sum(eqs)==2:
+                        i, j = combo
+                        pt1 = (corners[i, 0], corners[i, 1])
+                        pt2 = (corners[j, 0], corners[j, 1])
+                        retval, pt1, pt2 = cv2.clipLine((0, 0, W, H), pt1, pt2)
+                        if retval:
+                            cv2.line(rgb, pt1, pt2, color, thickness, cv2.LINE_AA)
         rgb = cv2.cvtColor(rgb.astype(np.uint8), cv2.COLOR_BGR2RGB)
-        # utils.basic.print_stats_py('rgb_uint8', rgb)
-        # imageio.imwrite('boxes_rgb.png', rgb)
         return rgb
 
     def draw_boxlist2d_on_image(self, rgb, boxlist, scores=None, tids=None):

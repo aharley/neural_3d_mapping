@@ -9,6 +9,11 @@ groups['train_feat3d'] = [
     'feat3d_dim = 32',
     # 'feat3d_smooth_coeff = 0.01',
 ]
+groups['train_det'] = [
+    'do_det = True',
+    'det_prob_coeff = 1.0',
+    'det_reg_coeff = 1.0',
+]
 
 ############## dataset settings ##############
 

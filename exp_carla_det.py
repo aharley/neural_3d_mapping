@@ -38,6 +38,10 @@ mod = '"det29"' # cleaned up
 mod = '"det30"' # do not draw 0,1 scores
 mod = '"det31"' # cleaned up
 mod = '"det32"' # evaluate against axlrtlist
+mod = '"det33"' # only show a fixed number of digits
+mod = '"det34"' # fix that 
+mod = '"det35"' # maxlen=3
+mod = '"det36"' # log500
 
 ############## define experiments ##############
 
@@ -69,11 +73,10 @@ exps['det_trainer'] = [
     # 'carla_16-8-16_bounds_val', 
     '200k_iters',
     'lr3',
-    # 'B1',
     'B4',
     'train_feat3d',
     'train_det',
-    'log50', 
+    'log500', 
 ]
 
 ############## group configs ##############

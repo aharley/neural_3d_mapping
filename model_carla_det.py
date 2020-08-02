@@ -191,8 +191,8 @@ class CarlaDetModel(nn.Module):
             self.summ_writer.summ_feat('feat3d/feat_halfmemX0', feat_halfmemX0, pca=True)
             
         if hyp.do_det:
-
             # this detector can only handle axis-aligned boxes (like rcnn)
+            # so first let's inflate the boxes to the nearest axis lines
             axlrtlist_camX = utils.geom.inflate_to_axis_aligned_lrtlist(lrtlist_camX)
             lrtlist_memX = self.vox_util.apply_mem_T_ref_to_lrtlist(lrtlist_camX, self.Z, self.Y, self.X)
             axlrtlist_memX = utils.geom.inflate_to_axis_aligned_lrtlist(lrtlist_memX)

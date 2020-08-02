@@ -605,60 +605,74 @@ def d3_box_overlap(boxes, qboxes, criterion=-1):
 #     return (gt_datas_list, dt_datas_list, ignored_gts, ignored_dts,
 #             dontcares, total_dc_num, total_num_valid_gt)
 
-def drop_invalid_boxes(boxlist_e, boxlist_g, scorelist_e, scorelist_g):
-    # print('before:')
-    # print(boxlist_e.shape)
-    # print(boxlist_g.shape)
-    boxlist_e_, boxlist_g_, scorelist_e_, scorelist_g_ = [], [], [], []
-    for i in list(range(len(boxlist_e))):
-        box_e = boxlist_e[i]
-        # print('box_e', box_e)
-        score_e = scorelist_e[i]
-        valid_e = np.where(box_e[:,3] > 0.0) # lx
-        boxlist_e_.append(box_e[valid_e])
-        scorelist_e_.append(score_e[valid_e])
-    # print('boxlist_e_', boxlist_e_)
-    for i in list(range(len(boxlist_g))):
-        box_g = boxlist_g[i]
-        score_g = scorelist_g[i]
-        valid_g = np.where(score_g > 0.5)
-        boxlist_g_.append(box_g[valid_g])
-        scorelist_g_.append(score_g[valid_g])
-    # print('boxlist_g_', boxlist_g_)
-    boxlist_e, boxlist_g, scorelist_e, scorelist_g = np.array(boxlist_e_), np.array(boxlist_g_), np.array(scorelist_e_), np.array(scorelist_g_)
-    return boxlist_e, boxlist_g, scorelist_e, scorelist_g
-
-def get_mAP(boxes_e, scores, boxes_g, iou_thresholds):
-    # boxes are 1 x N x 9
-    B, Ne, _ = list(boxes_e.shape)
-    B, Ng, _ = list(boxes_g.shape)
+def drop_invalid_lrts(lrtlist_e, lrtlist_g, scorelist_e, scorelist_g):
+    B, N, D = lrtlist_e.shape
     assert(B==1)
-    boxes_e = np.reshape(boxes_e, (B*Ne, 9))
-    boxes_g = np.reshape(boxes_g, (B*Ng, 9))
-    corners_e = utils.geom.transform_boxes3D_to_corners_py(boxes_e)
-    corners_g = utils.geom.transform_boxes3D_to_corners_py(boxes_g)
+    # unlike drop_invalid_boxes, this is all in pt
+    # print('before:')
+    # print(lrtlist_e.shape)
+    # print(lrtlist_g.shape)
+    # print(scorelist_e.shape)
+    # print(scorelist_g.shape)
+    # lrtlists are shaped B x N x 19
+    # scorelists are shaped B x N
+    lrtlist_e_, scorelist_e_, lrtlist_g_, scorelist_g_ = [], [], [], []
+    lenlist_e, _ = utils.geom.split_lrtlist(lrtlist_e)
+    for i in list(range(len(lrtlist_e))):
+        lrt_e = lrtlist_e[i]
+        score_e = scorelist_e[i]
+        len_e = lenlist_e[i]
+        valid_e = torch.where(len_e[:, 0] > 0.01)
+        lrtlist_e_.append(lrt_e[valid_e])
+        scorelist_e_.append(score_e[valid_e])
+    for i in list(range(len(lrtlist_g))):
+        lrt_g = lrtlist_g[i]
+        score_g = scorelist_g[i]
+        valid_g = torch.where(score_g > 0.5)
+        lrtlist_g_.append(lrt_g[valid_g])
+        scorelist_g_.append(score_g[valid_g])
+    lrtlist_e, lrtlist_g, scorelist_e, scorelist_g = torch.stack(lrtlist_e_), torch.stack(lrtlist_g_), torch.stack(scorelist_e_), torch.stack(scorelist_g_)
+    # print('after')
+    # print(lrtlist_e.shape)
+    # print(lrtlist_g.shape)
+    return lrtlist_e, lrtlist_g, scorelist_e, scorelist_g
+
+def get_mAP_from_lrtlist(lrtlist_e, scores, lrtlist_g, iou_thresholds):
+    # lrtlist are 1 x N x 19
+    B, Ne, _ = list(lrtlist_e.shape)
+    B, Ng, _ = list(lrtlist_g.shape)
+    assert(B==1)
+    scores = scores.detach().cpu().numpy()
     # print("e", boxes_e, "g", boxes_g, "score", scores)
     scores = scores.flatten()
     # size [N, 8, 3]
-    ious = np.zeros((Ne, Ng), dtype=np.float32)
+    ious_3d = np.zeros((Ne, Ng), dtype=np.float32)
+    ious_2d = np.zeros((Ne, Ng), dtype=np.float32)
     for i in list(range(Ne)):
         for j in list(range(Ng)):
-            if(boxes_e[i,3]>0 and boxes_g[j,3]>0):
-                iou_single, iou_2d_single = utils.box.box3d_iou(corners_e[i], corners_g[j])
-                ious[i,j] = iou_single
-    maps = []
+            iou_3d, iou_2d = utils.geom.get_iou_from_corresponded_lrtlists(lrtlist_e[:, i:i+1], lrtlist_g[:, j:j+1])
+            ious_3d[i, j] = iou_3d[0, 0]
+            ious_2d[i, j] = iou_2d[0, 0]
+    maps_3d = []
+    maps_2d = []
     for iou_threshold in iou_thresholds:
         map3d, precision, recall, overlaps = utils.ap.compute_ap(
-            "box3D_"+str(iou_threshold), scores, ious, iou_threshold=iou_threshold)
-        maps.append(map3d)
-    maps = np.stack(maps, axis=0).astype(np.float32)
-    if np.isnan(maps).any():
-        print('got these nans in maps; setting to zero:', maps)
-        maps[np.isnan(maps)] = 0.0
-        # assert(False)
-    
-    # print("maps", maps)
-    return maps
+            "box3d_" + str(iou_threshold), scores, ious_3d, iou_threshold=iou_threshold)
+        maps_3d.append(map3d)
+        map2d, precision, recall, overlaps = utils.ap.compute_ap(
+            "box2d_" + str(iou_threshold), scores, ious_2d, iou_threshold=iou_threshold)
+        maps_2d.append(map2d)
+    maps_3d = np.stack(maps_3d, axis=0).astype(np.float32)
+    maps_2d = np.stack(maps_2d, axis=0).astype(np.float32)
+    if np.isnan(maps_3d).any():
+        # print('got these nans in maps; setting to zero:', maps)
+        maps_3d[np.isnan(maps_3d)] = 0.0
+    if np.isnan(maps_2d).any():
+        # print('got these nans in maps; setting to zero:', maps)
+        maps_2d[np.isnan(maps_2d)] = 0.0
+
+    # print("maps_3d", maps_3d)
+    return maps_3d, maps_2d
 
 def measure_semantic_retrieval_precision(feats, masks, debug=False):
     # feat_memXs is B x C x Z x Y x X

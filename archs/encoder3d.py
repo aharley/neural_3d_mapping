@@ -1,11 +1,8 @@
 import torch
 import torch.nn as nn
 import time
-# import hyperparams as hyp
-# from utils_basic import *
 import torch.nn.functional as F
 import archs.pixelshuffle3d
-import spconv
 
 class Skipnet3d(nn.Module):
     def __init__(self, in_dim, out_dim, chans=64):

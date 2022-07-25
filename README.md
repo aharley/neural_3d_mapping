@@ -1,28 +1,6 @@
 # Learning from Unlabelled Videos using Contrastive Predictive Neural 3D Mapping
 
-I am working here on building a clean copy of our ICLR paper's code and results. Feel free to email me at `aharley@cmu.edu` if you want me to prioritize a particular part.
-
-### tasks
-- [x] static mode
-- [x] feat3d
-- [x] emb3d
-- [x] occ
-- [x] view
-- [x] feat2d
-- [x] emb2d
-- [x] delete unused nets
-- [x] delete unused modes from main and hyps
-- [x] ego
-- [x] instructional readme
-- [x] sample data on google drive
-- [ ] synth training for ego
-- [x] det
-- [ ] flow
-- [ ] nice gif in readme
-- [ ] full data on google drive
-- [ ] some weights
-
-Proper readme starts below here...
+This is a clean copy of our ICLR paper's code and results. Feel free to email me at `aharley@cmu.edu` or open an issue if you need help with anything.
 
 ## Installation
 

@@ -138,9 +138,10 @@ class CarlaDetModel(nn.Module):
         self.lrtlist_camRs = lrtlist_camRs_.reshape(self.B, self.S, self.N, 19)
         self.lrtlist_camR0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camR0s_T_camRs), __p(self.lrtlist_camRs)))
         self.lrtlist_camXs = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camXs_T_camRs), __p(self.lrtlist_camRs)))
+        self.lrtlist_camX0s = __u(utils.geom.apply_4x4_to_lrtlist(__p(self.camX0s_T_camXs), __p(self.lrtlist_camXs)))
 
         inbound_s = __u(utils.misc.rescore_lrtlist_with_inbound(
-            __p(self.lrtlist_camRs), __p(self.tidlist_s), self.Z, self.Y, self.X, self.vox_util))
+            __p(self.lrtlist_camX0s), __p(self.tidlist_s), self.Z, self.Y, self.X, self.vox_util))
         self.scorelist_s *= inbound_s
 
         for b in list(range(self.B)):
@@ -148,7 +149,8 @@ class CarlaDetModel(nn.Module):
                 return False # not OK; do not train on this
         
         self.rgb_camXs = feed['rgb_camXs']
-        
+        self.summ_writer.summ_rgb('2d_inputs/rgb', self.rgb_camXs[:,0])
+ 
         # get 3d voxelized inputs
         self.occ_memXs = __u(self.vox_util.voxelize_xyz(__p(self.xyz_camXs), self.Z, self.Y, self.X))
         self.unp_memXs = __u(self.vox_util.unproject_rgb_to_mem(
